@@ -8,12 +8,23 @@ import gc  # For garbage collection
 from pynput.mouse import Button, Controller as MouseController
 from pynput.keyboard import Listener, KeyCode
 
+# ─── Platform Configuration ──────────────────────────────────────────────────
+LAPTOP_PLATFORM = "Windows"  # Set to "Mac" or "Windows"
+
 # ─── Configuration ────────────────────────────────────────────────────────────
 START_STOP_KEY    = KeyCode(char='`')  # Backtick/grave accent key
 EXIT_KEY          = KeyCode(char='~')  # Tilde key
-DUNG_HOLE_REGION  = (830, 605, 895, 670)  # (x_min, y_min, x_max, y_max)
-LEMON_SOUR_REGION = (1680, 875, 1705, 900)  # Lemon Sour cocktail coordinates
-HOLE_IN_ONE_REGION = (1680, 840, 1705, 865)  # Hole in One cocktail coordinates (adjust as needed)
+
+# Platform-specific coordinates
+if LAPTOP_PLATFORM == "Windows":
+    DUNG_HOLE_REGION  = (1870, 870, 1995, 983)   # Windows coordinates
+    LEMON_SOUR_REGION = (3727, 1492, 3782, 1554) # Windows Lemon Sour coordinates
+    HOLE_IN_ONE_REGION = (3727, 1406, 3782, 1462) # Windows Hole in One coordinates
+else:  # Mac (default)
+    DUNG_HOLE_REGION  = (830, 605, 895, 670)     # Mac coordinates
+    LEMON_SOUR_REGION = (1680, 875, 1705, 900)   # Mac Lemon Sour coordinates
+    HOLE_IN_ONE_REGION = (1680, 840, 1705, 865)  # Mac Hole in One coordinates
+
 MIN_CLICKS_BEFORE_BREAK = 20
 BREAK_MIN_SEC     = 5
 BREAK_MAX_SEC     = 15
@@ -86,6 +97,16 @@ session_stats = {
     'session_start': None,
     'cocktail_cycles': 0
 }
+
+# ─── Add this function after the existing helper functions ───────────────────
+def get_platform_info():
+    """Get current platform configuration info."""
+    return {
+        'platform': LAPTOP_PLATFORM,
+        'dung_hole': DUNG_HOLE_REGION,
+        'lemon_sour': LEMON_SOUR_REGION,
+        'hole_in_one': HOLE_IN_ONE_REGION
+    }
 
 # ─── Enhanced Human-like Movement System ───────────────────────────────────────
 
@@ -691,9 +712,11 @@ def on_press(key):
 # ─── Entry point ───────────────────────────────────────────────────────────────
 def main():
     settings = get_current_settings()
+    platform_info = get_platform_info()
     
     logger.info("🎮 Enhanced Anti-Bot Mouse Automation Script")
     logger.info("=" * 60)
+    logger.info(f"💻 Platform: {platform_info['platform']}")
     logger.info(f"🎮 Mode: {settings['mode']}")
     logger.info(f"⌨️  START/STOP: Press '`' (backtick)")
     logger.info(f"⌨️  EXIT: Press '~' (tilde)")
@@ -707,10 +730,10 @@ def main():
     logger.info(f"👀 Distraction Moves: {'✅ Enabled' if ENABLE_DISTRACTION_MOVES else '❌ Disabled'} ({DISTRACTION_CHANCE*100:.0f}% chance)")
     logger.info(f"🎨 Curve Intensity: {CURVE_INTENSITY*100:.0f}%")
     logger.info("─" * 60)
-    logger.info(f"🕳️  Dung Hole Region: {DUNG_HOLE_REGION}")
-    logger.info(f"🍋 Lemon Sour Region: {LEMON_SOUR_REGION}")
+    logger.info(f"🕳️  Dung Hole Region: {platform_info['dung_hole']}")
+    logger.info(f"🍋 Lemon Sour Region: {platform_info['lemon_sour']}")
     if USE_HOLE_IN_ONE:
-        logger.info(f"🏌️  Hole in One Region: {HOLE_IN_ONE_REGION}")
+        logger.info(f"🏌️  Hole in One Region: {platform_info['hole_in_one']}")
     logger.info("─" * 60)
     
     if USE_HOLE_IN_ONE:

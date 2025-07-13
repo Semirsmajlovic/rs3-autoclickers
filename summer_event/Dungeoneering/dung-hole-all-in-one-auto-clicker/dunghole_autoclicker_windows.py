@@ -14,6 +14,21 @@ import msvcrt
 import os
 import json
 
+# Global state variables (must be at the very top)
+running = False
+click_count = 0
+click_thread = None
+start_time = None
+session_stats = {
+    'total_dung_clicks': 0,
+    'total_lemon_clicks': 0,
+    'total_hole_in_one_clicks': 0,
+    'total_moves': 0,
+    'total_breaks': 0,
+    'session_start': None,
+    'cocktail_cycles': 0
+}
+
 # ─── Logging Configuration ────────────────────────────────────────────────────
 class ColoredFormatter(logging.Formatter):
     COLORS = {

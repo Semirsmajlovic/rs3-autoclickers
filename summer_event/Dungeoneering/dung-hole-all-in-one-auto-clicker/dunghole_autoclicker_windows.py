@@ -292,6 +292,7 @@ def human_move(to_x: int, to_y: int):
     if will_overshoot and running:
         logger.debug("🎯 Correcting overshoot...")
         time.sleep(random.uniform(0.05, 0.15))
+        correction_steps = random.randint(3, 8)
         current_pos = get_current_mouse_position()
         move_straight_enhanced(current_pos[0], current_pos[1], to_x, to_y, correction_steps)
     

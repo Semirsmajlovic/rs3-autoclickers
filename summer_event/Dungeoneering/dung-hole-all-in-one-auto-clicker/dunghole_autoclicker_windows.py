@@ -10,53 +10,81 @@ from ctypes import windll, wintypes
 import win32api
 import win32con
 import win32gui
+import msvcrt
+import os
+import json
 
-# ─── DPI Awareness Configuration ───────────────────────────────────────────────
-try:
-    windll.shcore.SetProcessDpiAwareness(2)
-except AttributeError:
-    try:
-        windll.shcore.SetProcessDpiAwareness(1)
-    except AttributeError:
-        windll.user32.SetProcessDPIAware()
+# ─── Logging Configuration ────────────────────────────────────────────────────
+class ColoredFormatter(logging.Formatter):
+    COLORS = {
+        'DEBUG': '\033[36m',
+        'INFO': '\033[32m',
+        'WARNING': '\033[33m',
+        'ERROR': '\033[31m',
+        'CRITICAL': '\033[35m'
+    }
+    RESET = '\033[0m'
+    def format(self, record):
+        log_color = self.COLORS.get(record.levelname, '')
+        record.levelname = f"{log_color}{record.levelname}{self.RESET}"
+        return super().format(record)
 
-def get_dpi_scale():
-    try:
-        hdc = windll.user32.GetDC(0)
-        dpi_x = windll.gdi32.GetDeviceCaps(hdc, 88)
-        windll.user32.ReleaseDC(0, hdc)
-        return dpi_x / 96.0
-    except:
-        return 1.0
-
-def scale_coordinates(region, dpi_scale):
-    x_min, y_min, x_max, y_max = region
-    return (
-        int(x_min * dpi_scale),
-        int(y_min * dpi_scale),
-        int(x_max * dpi_scale),
-        int(y_max * dpi_scale)
-    )
-
-DPI_SCALE = get_dpi_scale()
-
-def get_mouse_position():
-    pos = win32api.GetCursorPos()
-    logger.info(f"📍 Current mouse position: {pos}")
-    return pos
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(ColoredFormatter('%(asctime)s - %(levelname)s - %(message)s'))
+handler.flush = lambda: handler.stream.flush()
+logger.addHandler(handler)
 
 # ─── Configuration ────────────────────────────────────────────────────────────
-START_STOP_KEY    = ord('`')
-EXIT_KEY          = ord('~')
-CALIBRATION_KEY   = ord('c')
+START_STOP_KEY    = '`'
+EXIT_KEY          = '~'
+CALIBRATION_KEY   = 'c'
 
-BASE_DUNG_HOLE_REGION  = (1870, 870, 1995, 983)
-BASE_LEMON_SOUR_REGION = (3727, 1492, 3782, 1554)
-BASE_HOLE_IN_ONE_REGION = (3727, 1406, 3782, 1462)
+REGION_FILE = 'regions.json'
 
-DUNG_HOLE_REGION  = scale_coordinates(BASE_DUNG_HOLE_REGION, DPI_SCALE)
-LEMON_SOUR_REGION = scale_coordinates(BASE_LEMON_SOUR_REGION, DPI_SCALE)
-HOLE_IN_ONE_REGION = scale_coordinates(BASE_HOLE_IN_ONE_REGION, DPI_SCALE)
+# ─── Calibration ──────────────────────────────────────────────────────────────
+def calibrate_region(name):
+    print(f"Move mouse to TOP-LEFT of {name} and press Enter...")
+    while True:
+        if msvcrt.kbhit() and msvcrt.getch() == b'\r':
+            x1, y1 = win32api.GetCursorPos()
+            break
+    print(f"Move mouse to BOTTOM-RIGHT of {name} and press Enter...")
+    while True:
+        if msvcrt.kbhit() and msvcrt.getch() == b'\r':
+            x2, y2 = win32api.GetCursorPos()
+            break
+    print(f"{name} region: ({x1}, {y1}, {x2}, {y2})")
+    return (x1, y1, x2, y2)
+
+def calibrate_all_regions():
+    print("\n--- Calibration Mode ---")
+    dung_hole = calibrate_region("Dung Hole")
+    lemon_sour = calibrate_region("Lemon Sour")
+    hole_in_one = calibrate_region("Hole in One")
+    regions = {
+        'DUNG_HOLE_REGION': dung_hole,
+        'LEMON_SOUR_REGION': lemon_sour,
+        'HOLE_IN_ONE_REGION': hole_in_one
+    }
+    with open(REGION_FILE, 'w') as f:
+        json.dump(regions, f)
+    print("Regions saved to regions.json!")
+    return regions
+
+def load_regions():
+    if os.path.exists(REGION_FILE):
+        with open(REGION_FILE, 'r') as f:
+            return json.load(f)
+    else:
+        logger.warning("No region calibration found. Please calibrate (press 'c').")
+        return calibrate_all_regions()
+
+regions = load_regions()
+DUNG_HOLE_REGION = tuple(regions['DUNG_HOLE_REGION'])
+LEMON_SOUR_REGION = tuple(regions['LEMON_SOUR_REGION'])
+HOLE_IN_ONE_REGION = tuple(regions['HOLE_IN_ONE_REGION'])
 
 MIN_CLICKS_BEFORE_BREAK = 20
 BREAK_MIN_SEC     = 5
@@ -85,42 +113,6 @@ OVERSHOOT_CHANCE = 0.15
 HESITATION_CHANCE = 0.25
 DISTRACTION_CHANCE = 0.08
 MICRO_CORRECTION_CHANCE = 0.4
-
-# ─── Logging Configuration ────────────────────────────────────────────────────
-class ColoredFormatter(logging.Formatter):
-    COLORS = {
-        'DEBUG': '\033[36m',
-        'INFO': '\033[32m',
-        'WARNING': '\033[33m',
-        'ERROR': '\033[31m',
-        'CRITICAL': '\033[35m'
-    }
-    RESET = '\033[0m'
-    def format(self, record):
-        log_color = self.COLORS.get(record.levelname, '')
-        record.levelname = f"{log_color}{record.levelname}{self.RESET}"
-        return super().format(record)
-
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(ColoredFormatter('%(asctime)s - %(levelname)s - %(message)s'))
-handler.flush = lambda: handler.stream.flush()
-logger.addHandler(handler)
-
-running = False
-click_count = 0
-click_thread = None
-start_time = None
-session_stats = {
-    'total_dung_clicks': 0,
-    'total_lemon_clicks': 0,
-    'total_hole_in_one_clicks': 0,
-    'total_moves': 0,
-    'total_breaks': 0,
-    'session_start': None,
-    'cocktail_cycles': 0
-}
 
 # ─── Native Windows Mouse Click with ctypes/SendInput ─────────────────────────
 PUL = ctypes.POINTER(ctypes.c_ulong)
@@ -644,7 +636,6 @@ def click_loop():
     logger.info("⏸️  Click loop stopped.")
 
 # ─── Console Keyboard Monitoring ───────────────────────────────────────────────
-import msvcrt
 
 def keyboard_monitor():
     """Console-based keyboard monitoring using msvcrt"""

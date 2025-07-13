@@ -643,29 +643,30 @@ def click_loop():
     
     logger.info("⏸️  Click loop stopped.")
 
-# ─── Simple Keyboard Monitoring ───────────────────────────────────────────────
+# ─── Console Keyboard Monitoring ───────────────────────────────────────────────
+import msvcrt
+
 def keyboard_monitor():
-    """Simple keyboard monitoring using win32api"""
+    """Console-based keyboard monitoring using msvcrt"""
     logger.info("⌨️  Keyboard monitoring started. Press '`' to start/stop, '~' to exit, 'c' for calibration")
+    logger.info("💡 Note: Make sure this console window is focused for key detection")
     
     try:
         while True:
-            time.sleep(0.1)  # Check every 100ms
-            
-            # Check for backtick key (start/stop)
-            if win32api.GetAsyncKeyState(ord('`')) & 0x8000:
-                handle_start_stop()
-                time.sleep(0.5)  # Prevent multiple triggers
-            
-            # Check for tilde key (exit)
-            if win32api.GetAsyncKeyState(ord('~')) & 0x8000:
-                handle_exit()
-                break
-            
-            # Check for 'c' key (calibration)
-            if win32api.GetAsyncKeyState(ord('c')) & 0x8000:
-                handle_calibration()
-                time.sleep(0.5)  # Prevent multiple triggers
+            if msvcrt.kbhit():
+                key = msvcrt.getch().decode('utf-8').lower()
+                
+                if key == '`':
+                    handle_start_stop()
+                    time.sleep(0.3)  # Prevent multiple triggers
+                elif key == '~':
+                    handle_exit()
+                    break
+                elif key == 'c':
+                    handle_calibration()
+                    time.sleep(0.3)  # Prevent multiple triggers
+            else:
+                time.sleep(0.05)  # Short sleep when no key is pressed
                 
     except KeyboardInterrupt:
         logger.info("👋 Script interrupted by user")

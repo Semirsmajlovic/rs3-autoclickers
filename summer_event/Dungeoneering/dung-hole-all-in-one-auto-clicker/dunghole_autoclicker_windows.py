@@ -643,47 +643,34 @@ def click_loop():
     
     logger.info("⏸️  Click loop stopped.")
 
-# ─── Windows API Keyboard Hook ───────────────────────────────────────────────
-HOOKPROC = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int, ctypes.c_uint, ctypes.POINTER(ctypes.c_void_p))
-
-def keyboard_hook():
-    def low_level_handler(nCode, wParam, lParam):
-        if nCode >= 0:
-            if wParam == win32con.WM_KEYDOWN:
-                # Extract key code from lParam
-                key_code = ctypes.cast(lParam, ctypes.POINTER(ctypes.c_ulong))[0] & 0xFF
-                if key_code == START_STOP_KEY:
-                    handle_start_stop()
-                elif key_code == EXIT_KEY:
-                    handle_exit()
-                elif key_code == CALIBRATION_KEY:
-                    handle_calibration()
-        return windll.user32.CallNextHookEx(None, nCode, wParam, lParam)
-    
-    # Create the hook procedure
-    hook_proc = HOOKPROC(low_level_handler)
-    
-    # Set the hook
-    hook_id = windll.user32.SetWindowsHookExA(
-        win32con.WH_KEYBOARD_LL,
-        hook_proc,
-        windll.kernel32.GetModuleHandleW(None),
-        0
-    )
-    
-    if hook_id == 0:
-        logger.error("❌ Failed to set keyboard hook")
-        return
+# ─── Simple Keyboard Monitoring ───────────────────────────────────────────────
+def keyboard_monitor():
+    """Simple keyboard monitoring using win32api"""
+    logger.info("⌨️  Keyboard monitoring started. Press '`' to start/stop, '~' to exit, 'c' for calibration")
     
     try:
-        msg = wintypes.MSG()
-        while windll.user32.GetMessageA(ctypes.byref(msg), None, 0, 0) != 0:
-            windll.user32.TranslateMessage(ctypes.byref(msg))
-            windll.user32.DispatchMessageA(ctypes.byref(msg))
+        while True:
+            time.sleep(0.1)  # Check every 100ms
+            
+            # Check for backtick key (start/stop)
+            if win32api.GetAsyncKeyState(ord('`')) & 0x8000:
+                handle_start_stop()
+                time.sleep(0.5)  # Prevent multiple triggers
+            
+            # Check for tilde key (exit)
+            if win32api.GetAsyncKeyState(ord('~')) & 0x8000:
+                handle_exit()
+                break
+            
+            # Check for 'c' key (calibration)
+            if win32api.GetAsyncKeyState(ord('c')) & 0x8000:
+                handle_calibration()
+                time.sleep(0.5)  # Prevent multiple triggers
+                
+    except KeyboardInterrupt:
+        logger.info("👋 Script interrupted by user")
     except Exception as e:
-        logger.error(f"❌ Error in keyboard hook: {e}")
-    finally:
-        windll.user32.UnhookWindowsHookEx(hook_id)
+        logger.error(f"❌ Error in keyboard monitor: {e}")
 
 def handle_start_stop():
     global running, click_thread, session_stats
@@ -781,7 +768,7 @@ def main():
     logger.info("💡 Tip: Using pure Windows API - no pynput detection!")
     
     try:
-        keyboard_hook()
+        keyboard_monitor()
     except KeyboardInterrupt:
         logger.info("👋 Script interrupted by user")
     except Exception as e:

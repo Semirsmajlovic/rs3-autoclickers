@@ -110,11 +110,11 @@ PROGRESS_UPDATE_INTERVAL = 120
 SHOW_DETAILED_PROGRESS = False
 FORCE_GARBAGE_COLLECTION = True
 
-USE_UGLY_DUCKLING = False
+USE_UGLY_DUCKLING = True
 COCKTAIL_INTERVAL_NORMAL = 10
-COCKTAIL_INTERVAL_UGLY_DUCKLING = 4
+COCKTAIL_INTERVAL_UGLY_DUCKLING = 10
 HOOK_A_DUCK_DURATION_NORMAL = (79, 90)
-HOOK_A_DUCK_DURATION_UGLY_DUCKLING = (242, 250)
+HOOK_A_DUCK_DURATION_UGLY_DUCKLING = (79, 90)
 
 ENABLE_CURVED_PATHS = True
 ENABLE_OVERSHOOT = True
@@ -729,7 +729,7 @@ def main():
     logger.info("🖥️  DISPLAY CONFIGURATION:")
     logger.info(f"🖥️  Calibrated Hook a Duck Region: {HOOK_A_DUCK_REGION}")
     logger.info(f"🖥️  Calibrated Purple Lumbridge Region: {PURPLE_LUMBRIDGE_REGION}")
-    logger.info(f"🖥️  Calibrated George's Peach Delight Region: {GEORGES_PEACH_DELIGHT_REGION}")
+    logger.info(f"🖥️  Calibrated Ugly Duckling Region: {UGLY_DUCKLING_REGION}")
     logger.info("─" * 60)
     logger.info("🤖 ANTI-BOT DETECTION FEATURES:")
     logger.info(f"🏹 Curved Paths: {'✅ Enabled' if ENABLE_CURVED_PATHS else '❌ Disabled'}")

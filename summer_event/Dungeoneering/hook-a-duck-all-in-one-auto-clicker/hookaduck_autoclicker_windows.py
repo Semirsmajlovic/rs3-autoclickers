@@ -22,7 +22,7 @@ start_time = None
 session_stats = {
     'total_hook_a_duck_clicks': 0,
     'total_purple_lumbridge_clicks': 0,
-    'total_georges_peach_delight_clicks': 0,
+    'total_ugly_duckling_clicks': 0,
     'total_moves': 0,
     'total_breaks': 0,
     'session_start': None,
@@ -77,11 +77,11 @@ def calibrate_all_regions():
     print("\n--- Calibration Mode ---")
     hook_a_duck = calibrate_region("Hook a Duck")
     purple_lumbridge = calibrate_region("Purple Lumbridge")
-    georges_peach_delight = calibrate_region("George's Peach Delight")
+    ugly_duckling = calibrate_region("Ugly Duckling")
     regions = {
         'HOOK_A_DUCK_REGION': hook_a_duck,
         'PURPLE_LUMBRIDGE_REGION': purple_lumbridge,
-        'GEORGES_PEACH_DELIGHT_REGION': georges_peach_delight
+        'UGLY_DUCKLING_REGION': ugly_duckling
     }
     with open(REGION_FILE, 'w') as f:
         json.dump(regions, f)
@@ -99,7 +99,7 @@ def load_regions():
 regions = load_regions()
 HOOK_A_DUCK_REGION = tuple(regions['HOOK_A_DUCK_REGION'])
 PURPLE_LUMBRIDGE_REGION = tuple(regions['PURPLE_LUMBRIDGE_REGION'])
-GEORGES_PEACH_DELIGHT_REGION = tuple(regions['GEORGES_PEACH_DELIGHT_REGION'])
+UGLY_DUCKLING_REGION = tuple(regions['UGLY_DUCKLING_REGION'])
 
 MIN_CLICKS_BEFORE_BREAK = 20
 BREAK_MIN_SEC     = 5
@@ -110,11 +110,11 @@ PROGRESS_UPDATE_INTERVAL = 120
 SHOW_DETAILED_PROGRESS = False
 FORCE_GARBAGE_COLLECTION = True
 
-USE_GEORGES_PEACH_DELIGHT = False
+USE_UGLY_DUCKLING = False
 COCKTAIL_INTERVAL_NORMAL = 10
-COCKTAIL_INTERVAL_GEORGES_PEACH_DELIGHT = 4
+COCKTAIL_INTERVAL_UGLY_DUCKLING = 4
 HOOK_A_DUCK_DURATION_NORMAL = (79, 90)
-HOOK_A_DUCK_DURATION_GEORGES_PEACH_DELIGHT = (242, 250)
+HOOK_A_DUCK_DURATION_UGLY_DUCKLING = (242, 250)
 
 ENABLE_CURVED_PATHS = True
 ENABLE_OVERSHOOT = True
@@ -408,11 +408,11 @@ def format_time(seconds):
         return f"{seconds}s"
 
 def get_current_settings():
-    if USE_GEORGES_PEACH_DELIGHT:
+    if USE_UGLY_DUCKLING:
         return {
-            'cocktail_interval': COCKTAIL_INTERVAL_GEORGES_PEACH_DELIGHT,
-            'hook_a_duck_duration': HOOK_A_DUCK_DURATION_GEORGES_PEACH_DELIGHT,
-            'mode': "George's Peach Delight Mode"
+            'cocktail_interval': COCKTAIL_INTERVAL_UGLY_DUCKLING,
+            'hook_a_duck_duration': HOOK_A_DUCK_DURATION_UGLY_DUCKLING,
+            'mode': 'Ugly Duckling Mode'
         }
     else:
         return {
@@ -424,7 +424,7 @@ def get_current_settings():
 def print_stats():
     if session_stats['session_start']:
         elapsed = time.time() - session_stats['session_start']
-        total_clicks = session_stats['total_hook_a_duck_clicks'] + session_stats['total_purple_lumbridge_clicks'] + session_stats['total_georges_peach_delight_clicks']
+        total_clicks = session_stats['total_hook_a_duck_clicks'] + session_stats['total_purple_lumbridge_clicks'] + session_stats['total_ugly_duckling_clicks']
         clicks_per_min = (total_clicks / elapsed) * 60 if elapsed > 0 else 0
         settings = get_current_settings()
         
@@ -433,8 +433,8 @@ def print_stats():
         logger.info("=" * 60)
         logger.info(f"🎣 Hook a Duck Clicks: {session_stats['total_hook_a_duck_clicks']}")
         logger.info(f"🟣 Purple Lumbridge Clicks: {session_stats['total_purple_lumbridge_clicks']}")
-        if USE_GEORGES_PEACH_DELIGHT:
-            logger.info(f"🍑 George's Peach Delight Clicks: {session_stats['total_georges_peach_delight_clicks']}")
+        if USE_UGLY_DUCKLING:
+            logger.info(f"🦆 Ugly Duckling Clicks: {session_stats['total_ugly_duckling_clicks']}")
         logger.info(f"📍 Total Moves: {session_stats['total_moves']}")
         logger.info(f"☕ Total Breaks: {session_stats['total_breaks']}")
         logger.info(f"🔄 Cocktail Cycles: {session_stats['cocktail_cycles']}")
@@ -443,16 +443,16 @@ def print_stats():
         logger.info(f"🎮 Mode: {settings['mode']}")
         logger.info(f"🎣 Hook a Duck Region: {HOOK_A_DUCK_REGION}")
         logger.info(f"🟣 Purple Lumbridge Region: {PURPLE_LUMBRIDGE_REGION}")
-        if USE_GEORGES_PEACH_DELIGHT:
-            logger.info(f"🍑 George's Peach Delight Region: {GEORGES_PEACH_DELIGHT_REGION}")
+        if USE_UGLY_DUCKLING:
+            logger.info(f"🦆 Ugly Duckling Region: {UGLY_DUCKLING_REGION}")
         logger.info("=" * 60)
 
-def click_georges_peach_delight():
+def click_ugly_duckling():
     global session_stats
     
-    logger.info("🍑 Clicking George's Peach Delight cocktail...")
-    tx, ty = random_target_within(GEORGES_PEACH_DELIGHT_REGION)
-    logger.info(f"🎯 Moving to George's Peach Delight: ({tx}, {ty})")
+    logger.info("🦆 Clicking Ugly Duckling cocktail...")
+    tx, ty = random_target_within(UGLY_DUCKLING_REGION)
+    logger.info(f"🎯 Moving to Ugly Duckling: ({tx}, {ty})")
     human_move(tx, ty)
     
     if not running:
@@ -465,9 +465,9 @@ def click_georges_peach_delight():
     time.sleep(random.uniform(0.03, 0.12))
     
     send_native_click(*get_current_mouse_position())
-    session_stats['total_georges_peach_delight_clicks'] += 1
+    session_stats['total_ugly_duckling_clicks'] += 1
     
-    logger.info(f"✅ George's Peach Delight click #{session_stats['total_georges_peach_delight_clicks']} completed at {get_current_mouse_position()}")
+    logger.info(f"✅ Ugly Duckling click #{session_stats['total_ugly_duckling_clicks']} completed at {get_current_mouse_position()}")
     return True
 
 def click_purple_lumbridge():
@@ -496,8 +496,8 @@ def click_purple_lumbridge():
 def click_cocktails():
     logger.info("🍹 Starting cocktail sequence...")
     
-    if USE_GEORGES_PEACH_DELIGHT:
-        if not click_georges_peach_delight():
+    if USE_UGLY_DUCKLING:
+        if not click_ugly_duckling():
             return False
             
         delay = random.uniform(2.5, 7.5)
@@ -585,8 +585,8 @@ def click_loop():
     logger.info(f"🎮 Mode: {settings['mode']}")
     logger.info(f"🎣 Hook a Duck Region: {HOOK_A_DUCK_REGION}")
     logger.info(f"🟣 Purple Lumbridge Region: {PURPLE_LUMBRIDGE_REGION}")
-    if USE_GEORGES_PEACH_DELIGHT:
-        logger.info(f"🍑 George's Peach Delight Region: {GEORGES_PEACH_DELIGHT_REGION}")
+    if USE_UGLY_DUCKLING:
+        logger.info(f"🦆 Ugly Duckling Region: {UGLY_DUCKLING_REGION}")
     
     logger.info(f"⏳ Initial delay: {INITIAL_DELAY_SEC} seconds to switch screens...")
     for i in range(INITIAL_DELAY_SEC, 0, -1):
@@ -621,8 +621,8 @@ def click_loop():
             min_wait, max_wait = settings['hook_a_duck_duration']
             interval = random.uniform(min_wait, max_wait)
             
-            if USE_GEORGES_PEACH_DELIGHT:
-                smart_wait(interval, "character to exit Hook a Duck (George's Peach Delight mode)")
+            if USE_UGLY_DUCKLING:
+                smart_wait(interval, "character to exit Hook a Duck (Ugly Duckling mode)")
             else:
                 smart_wait(interval, "character to exit Hook a Duck")
             
@@ -741,9 +741,9 @@ def main():
     logger.info(f"🎨 Curve Intensity: {CURVE_INTENSITY*100:.0f}%")
     logger.info("─" * 60)
     
-    if USE_GEORGES_PEACH_DELIGHT:
+    if USE_UGLY_DUCKLING:
         logger.info(f"⏰ Hook a Duck Duration: {settings['hook_a_duck_duration'][0]//60}:{settings['hook_a_duck_duration'][0]%60:02d}-{settings['hook_a_duck_duration'][1]//60}:{settings['hook_a_duck_duration'][1]%60:02d} minutes")
-        logger.info(f"🍹 Cocktail Sequence: George's Peach Delight → Purple Lumbridge")
+        logger.info(f"🍹 Cocktail Sequence: Ugly Duckling → Purple Lumbridge")
     else:
         logger.info(f"⏰ Hook a Duck Duration: {settings['hook_a_duck_duration'][0]}-{settings['hook_a_duck_duration'][1]} seconds")
         logger.info(f"🍹 Cocktail Sequence: Purple Lumbridge only")
@@ -754,8 +754,8 @@ def main():
     logger.info(f"📊 Progress Updates: Every {PROGRESS_UPDATE_INTERVAL}s for long waits")
     logger.info("=" * 60)
     
-    if USE_GEORGES_PEACH_DELIGHT:
-        logger.info("🍑 GEORGE'S PEACH DELIGHT MODE ACTIVE - Extended 4+ minute Hook a Duck duration!")
+    if USE_UGLY_DUCKLING:
+        logger.info("🦆 UGLY DUCKLING MODE ACTIVE - Extended 4+ minute Hook a Duck duration!")
     else:
         logger.info("🟣 NORMAL MODE - Standard 1:15 minute Hook a Duck duration")
     

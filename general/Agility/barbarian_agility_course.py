@@ -611,7 +611,7 @@ def agility_course_loop():
             if current_obstacle == 0:
                 lap_count += 1
                 session_stats['total_laps'] += 1
-                logger.info(f"🏁 Lap #{lap_count} completed!")
+                logger.info(f"🏁 ======================================= Lap #{lap_count} completed!")
                 
                 # Print stats every 5 laps
                 if lap_count % 5 == 0:

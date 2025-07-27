@@ -70,7 +70,7 @@ OBSTACLES = [
     {
         'name': 'Rope Swing',
         'emoji': '🪢',
-        'duration': (3.5, 5.0),
+        'duration': (4.5, 6.0),
         'region_key': 'ROPE_SWING_REGION'
     },
     {

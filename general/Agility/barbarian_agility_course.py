@@ -82,7 +82,7 @@ OBSTACLES = [
     {
         'name': 'Run-up Wall',
         'emoji': '🏃',
-        'duration': (9.0, 11.0),
+        'duration': (8.0, 10.0),
         'region_key': 'RUN_UP_WALL_REGION'
     },
     {

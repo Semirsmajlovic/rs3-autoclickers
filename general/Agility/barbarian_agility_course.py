@@ -88,7 +88,7 @@ OBSTACLES = [
     {
         'name': 'Climb-up Wall',
         'emoji': '🧗',
-        'duration': (6.0, 8.0),
+        'duration': (5.0, 7.0),
         'region_key': 'CLIMB_UP_WALL_REGION'
     },
     {

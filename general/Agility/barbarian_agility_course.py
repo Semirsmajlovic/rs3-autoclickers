@@ -76,13 +76,13 @@ OBSTACLES = [
     {
         'name': 'Log Balance',
         'emoji': '🪵',
-        'duration': (10.0, 12.0),
+        'duration': (9.0, 11.0),
         'region_key': 'LOG_BALANCE_REGION'
     },
     {
         'name': 'Run-up Wall',
         'emoji': '🏃',
-        'duration': (10.0, 12.0),
+        'duration': (9.0, 11.0),
         'region_key': 'RUN_UP_WALL_REGION'
     },
     {

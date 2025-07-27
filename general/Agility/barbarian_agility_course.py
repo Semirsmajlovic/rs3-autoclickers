@@ -432,21 +432,70 @@ def move_straight_enhanced(start_x, start_y, target_x, target_y, steps):
 def random_target_within(region):
     x_min, y_min, x_max, y_max = region
     
-    center_x = (x_min + x_max) / 2
-    center_y = (y_min + y_max) / 2
+    # Calculate region dimensions
+    width = x_max - x_min
+    height = y_max - y_min
     
-    if random.random() < 0.7:
-        offset_x = random.uniform(-8, 8)
-        offset_y = random.uniform(-8, 8)
-        x = int(center_x + offset_x)
-        y = int(center_y + offset_y)
-    else:
-        inset = 4
+    # Use different distribution strategies for better coverage
+    strategy = random.choice(['uniform', 'gaussian_center', 'gaussian_edge', 'corners'])
+    
+    if strategy == 'uniform':
+        # Pure uniform distribution across entire region (most common)
+        inset = max(2, min(8, min(width, height) // 20))  # Dynamic inset based on region size
         x = random.randint(x_min + inset, x_max - inset)
         y = random.randint(y_min + inset, y_max - inset)
+        
+    elif strategy == 'gaussian_center':
+        # Gaussian distribution centered in the region
+        center_x = (x_min + x_max) / 2
+        center_y = (y_min + y_max) / 2
+        
+        # Use 1/4 of region size as standard deviation for good spread
+        std_x = width / 4
+        std_y = height / 4
+        
+        x = int(random.gauss(center_x, std_x))
+        y = int(random.gauss(center_y, std_y))
+        
+    elif strategy == 'gaussian_edge':
+        # Bias toward edges of the region
+        if random.random() < 0.5:
+            # Bias toward left/right edges
+            edge_x = x_min if random.random() < 0.5 else x_max
+            x = int(random.gauss(edge_x, width / 8))
+            y = random.randint(y_min + 5, y_max - 5)
+        else:
+            # Bias toward top/bottom edges
+            edge_y = y_min if random.random() < 0.5 else y_max
+            x = random.randint(x_min + 5, x_max - 5)
+            y = int(random.gauss(edge_y, height / 8))
+            
+    else:  # corners
+        # Bias toward corners for variety
+        corner_bias = 0.3  # How close to corners
+        if random.random() < 0.5:
+            # Top corners
+            if random.random() < 0.5:
+                x = int(x_min + width * corner_bias * random.random())
+                y = int(y_min + height * corner_bias * random.random())
+            else:
+                x = int(x_max - width * corner_bias * random.random())
+                y = int(y_min + height * corner_bias * random.random())
+        else:
+            # Bottom corners
+            if random.random() < 0.5:
+                x = int(x_min + width * corner_bias * random.random())
+                y = int(y_max - height * corner_bias * random.random())
+            else:
+                x = int(x_max - width * corner_bias * random.random())
+                y = int(y_max - height * corner_bias * random.random())
     
-    x = max(x_min + 2, min(x_max - 2, x))
-    y = max(y_min + 2, min(y_max - 2, y))
+    # Ensure coordinates stay within bounds with minimal inset
+    inset = max(1, min(3, min(width, height) // 50))
+    x = max(x_min + inset, min(x_max - inset, x))
+    y = max(y_min + inset, min(y_max - inset, y))
+    
+    logger.debug(f"🎯 Target strategy: {strategy}, coordinates: ({x}, {y}) in region {region}")
     
     return x, y
 
@@ -611,7 +660,7 @@ def agility_course_loop():
             if current_obstacle == 0:
                 lap_count += 1
                 session_stats['total_laps'] += 1
-                logger.info(f"🏁 ======================================= Lap #{lap_count} completed!")
+                logger.info(f"🏁 ======================================== Lap #{lap_count} completed!")
                 
                 # Print stats every 5 laps
                 if lap_count % 5 == 0:

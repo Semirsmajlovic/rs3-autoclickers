@@ -70,7 +70,7 @@ OBSTACLES = [
     {
         'name': 'Rope Swing',
         'emoji': '🪢',
-        'duration': (4.5, 6.0),
+        'duration': (3.5, 5.0),
         'region_key': 'ROPE_SWING_REGION'
     },
     {
@@ -140,18 +140,18 @@ def calibrate_region(name):
     x_min, x_max = min(x1, x2), max(x1, x2)
     y_min, y_max = min(y1, y2), max(y1, y2)
     
-    # Ensure minimum region size
-    if x_max - x_min < 10:
-        print(f"⚠️  Region too narrow ({x_max - x_min}px), expanding to 20px width")
+    # Ensure minimum region size (very conservative expansion)
+    if x_max - x_min < 4:
+        print(f"⚠️  Region too narrow ({x_max - x_min}px), expanding by 2px")
         center_x = (x_min + x_max) / 2
-        x_min = int(center_x - 10)
-        x_max = int(center_x + 10)
+        x_min = int(center_x - 2)
+        x_max = int(center_x + 2)
     
-    if y_max - y_min < 10:
-        print(f"⚠️  Region too short ({y_max - y_min}px), expanding to 20px height")
+    if y_max - y_min < 4:
+        print(f"⚠️  Region too short ({y_max - y_min}px), expanding by 2px")
         center_y = (y_min + y_max) / 2
-        y_min = int(center_y - 10)
-        y_max = int(center_y + 10)
+        y_min = int(center_y - 2)
+        y_max = int(center_y + 2)
     
     region = (x_min, y_min, x_max, y_max)
     print(f"{name} region: {region} (width: {x_max-x_min}px, height: {y_max-y_min}px)")
@@ -459,31 +459,31 @@ def random_target_within(region):
         y_min, y_max = y_max, y_min
         logger.warning(f"⚠️  Swapped Y coordinates: min={y_min}, max={y_max}")
     
-    # Ensure minimum region size
-    if x_max - x_min < 10:
-        logger.warning(f"⚠️  Region too narrow ({x_max - x_min}px), expanding...")
+    # Ensure minimum region size (very conservative expansion)
+    if x_max - x_min < 4:
+        logger.warning(f"⚠️  Region too narrow ({x_max - x_min}px), expanding by 2px...")
         center_x = (x_min + x_max) / 2
-        x_min = int(center_x - 5)
-        x_max = int(center_x + 5)
+        x_min = int(center_x - 2)
+        x_max = int(center_x + 2)
     
-    if y_max - y_min < 10:
-        logger.warning(f"⚠️  Region too short ({y_max - y_min}px), expanding...")
+    if y_max - y_min < 4:
+        logger.warning(f"⚠️  Region too short ({y_max - y_min}px), expanding by 2px...")
         center_y = (y_min + y_max) / 2
-        y_min = int(center_y - 5)
-        y_max = int(center_y + 5)
+        y_min = int(center_y - 2)
+        y_max = int(center_y + 2)
     
     center_x = (x_min + x_max) / 2
     center_y = (y_min + y_max) / 2
     
     if random.random() < 0.7:
         # Target near center with small offset
-        offset_x = random.uniform(-8, 8)
-        offset_y = random.uniform(-8, 8)
+        offset_x = random.uniform(-2, 2)  # Reduced from -8, 8
+        offset_y = random.uniform(-2, 2)  # Reduced from -8, 8
         x = int(center_x + offset_x)
         y = int(center_y + offset_y)
     else:
-        # Target anywhere in region with inset
-        inset = 4
+        # Target anywhere in region with minimal inset
+        inset = 1  # Reduced from 4
         try:
             x = random.randint(x_min + inset, x_max - inset)
             y = random.randint(y_min + inset, y_max - inset)
@@ -492,9 +492,9 @@ def random_target_within(region):
             x = int(center_x)
             y = int(center_y)
     
-    # Final bounds check
-    x = max(x_min + 2, min(x_max - 2, x))
-    y = max(y_min + 2, min(y_max - 2, y))
+    # Final bounds check with minimal padding
+    x = max(x_min + 1, min(x_max - 1, x))  # Reduced from +2, -2
+    y = max(y_min + 1, min(y_max - 1, y))  # Reduced from +2, -2
     
     return x, y
 

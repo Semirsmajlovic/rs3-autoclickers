@@ -70,7 +70,7 @@ OBSTACLES = [
     {
         'name': 'Rope Swing',
         'emoji': '🪢',
-        'duration': (4.5, 6.0),
+        'duration': (3.5, 5.0),
         'region_key': 'ROPE_SWING_REGION'
     },
     {
@@ -135,27 +135,8 @@ def calibrate_region(name):
         if msvcrt.kbhit() and msvcrt.getch() == b'\r':
             x2, y2 = win32api.GetCursorPos()
             break
-    
-    # Ensure coordinates are in correct order
-    x_min, x_max = min(x1, x2), max(x1, x2)
-    y_min, y_max = min(y1, y2), max(y1, y2)
-    
-    # Ensure minimum region size (very conservative expansion)
-    if x_max - x_min < 4:
-        print(f"⚠️  Region too narrow ({x_max - x_min}px), expanding by 2px")
-        center_x = (x_min + x_max) / 2
-        x_min = int(center_x - 2)
-        x_max = int(center_x + 2)
-    
-    if y_max - y_min < 4:
-        print(f"⚠️  Region too short ({y_max - y_min}px), expanding by 2px")
-        center_y = (y_min + y_max) / 2
-        y_min = int(center_y - 2)
-        y_max = int(center_y + 2)
-    
-    region = (x_min, y_min, x_max, y_max)
-    print(f"{name} region: {region} (width: {x_max-x_min}px, height: {y_max-y_min}px)")
-    return region
+    print(f"{name} region: ({x1}, {y1}, {x2}, {y2})")
+    return (x1, y1, x2, y2)
 
 def calibrate_all_regions():
     print("\n--- Barbarian Agility Course Calibration Mode ---")
@@ -451,50 +432,21 @@ def move_straight_enhanced(start_x, start_y, target_x, target_y, steps):
 def random_target_within(region):
     x_min, y_min, x_max, y_max = region
     
-    # Ensure coordinates are in correct order (swap if needed)
-    if x_min > x_max:
-        x_min, x_max = x_max, x_min
-        logger.warning(f"⚠️  Swapped X coordinates: min={x_min}, max={x_max}")
-    if y_min > y_max:
-        y_min, y_max = y_max, y_min
-        logger.warning(f"⚠️  Swapped Y coordinates: min={y_min}, max={y_max}")
-    
-    # Ensure minimum region size (very conservative expansion)
-    if x_max - x_min < 4:
-        logger.warning(f"⚠️  Region too narrow ({x_max - x_min}px), expanding by 2px...")
-        center_x = (x_min + x_max) / 2
-        x_min = int(center_x - 2)
-        x_max = int(center_x + 2)
-    
-    if y_max - y_min < 4:
-        logger.warning(f"⚠️  Region too short ({y_max - y_min}px), expanding by 2px...")
-        center_y = (y_min + y_max) / 2
-        y_min = int(center_y - 2)
-        y_max = int(center_y + 2)
-    
     center_x = (x_min + x_max) / 2
     center_y = (y_min + y_max) / 2
     
     if random.random() < 0.7:
-        # Target near center with small offset
-        offset_x = random.uniform(-2, 2)  # Reduced from -8, 8
-        offset_y = random.uniform(-2, 2)  # Reduced from -8, 8
+        offset_x = random.uniform(-8, 8)
+        offset_y = random.uniform(-8, 8)
         x = int(center_x + offset_x)
         y = int(center_y + offset_y)
     else:
-        # Target anywhere in region with minimal inset
-        inset = 1  # Reduced from 4
-        try:
-            x = random.randint(x_min + inset, x_max - inset)
-            y = random.randint(y_min + inset, y_max - inset)
-        except ValueError as e:
-            logger.warning(f"⚠️  Random range error: {e}. Using center coordinates.")
-            x = int(center_x)
-            y = int(center_y)
+        inset = 4
+        x = random.randint(x_min + inset, x_max - inset)
+        y = random.randint(y_min + inset, y_max - inset)
     
-    # Final bounds check with minimal padding
-    x = max(x_min + 1, min(x_max - 1, x))  # Reduced from +2, -2
-    y = max(y_min + 1, min(y_max - 1, y))  # Reduced from +2, -2
+    x = max(x_min + 2, min(x_max - 2, x))
+    y = max(y_min + 2, min(y_max - 2, y))
     
     return x, y
 
@@ -558,34 +510,27 @@ def click_obstacle(obstacle_index):
     region = tuple(regions[region_key])
     
     logger.info(f"{obstacle['emoji']} Clicking {obstacle['name']}...")
+    tx, ty = random_target_within(region)
+    logger.info(f"🎯 Moving to {obstacle['name']}: ({tx}, {ty})")
+    human_move(tx, ty)
     
-    try:
-        tx, ty = random_target_within(region)
-        logger.info(f"🎯 Moving to {obstacle['name']}: ({tx}, {ty})")
-        human_move(tx, ty)
-        
-        if not running:
-            return False
-        
-        current_x, current_y = get_current_mouse_position()
-        set_mouse_position(current_x + random.uniform(-0.8, 0.8), 
-                         current_y + random.uniform(-0.8, 0.8))
-        
-        time.sleep(random.uniform(0.03, 0.12))
-        
-        send_native_click(*get_current_mouse_position())
-        
-        # Update stats
-        stats_key = f"total_{obstacle['name'].lower().replace('-', '_').replace(' ', '_')}_clicks"
-        session_stats[stats_key] += 1
-        
-        logger.info(f"✅ {obstacle['name']} click #{session_stats[stats_key]} completed at {get_current_mouse_position()}")
-        return True
-        
-    except Exception as e:
-        logger.error(f"❌ Error clicking {obstacle['name']}: {e}")
-        logger.error(f"❌ Region was: {region}")
+    if not running:
         return False
+    
+    current_x, current_y = get_current_mouse_position()
+    set_mouse_position(current_x + random.uniform(-0.8, 0.8), 
+                     current_y + random.uniform(-0.8, 0.8))
+    
+    time.sleep(random.uniform(0.03, 0.12))
+    
+    send_native_click(*get_current_mouse_position())
+    
+    # Update stats
+    stats_key = f"total_{obstacle['name'].lower().replace('-', '_').replace(' ', '_')}_clicks"
+    session_stats[stats_key] += 1
+    
+    logger.info(f"✅ {obstacle['name']} click #{session_stats[stats_key]} completed at {get_current_mouse_position()}")
+    return True
 
 def smart_wait(wait_time, action_description="next action"):
     if wait_time <= 30:

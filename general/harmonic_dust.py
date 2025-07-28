@@ -49,8 +49,8 @@ START_STOP_KEY           = '`'
 EXIT_KEY                 = '~'
 CALIBRATION_KEY          = 'c'
 REGION_FILE              = 'harp-region.json'
-MIN_CLICK_INTERVAL       = 10      # seconds
-MAX_CLICK_INTERVAL       = 20      # seconds
+MIN_CLICK_INTERVAL       = 15      # seconds
+MAX_CLICK_INTERVAL       = 35      # seconds
 INITIAL_DELAY_SEC        = 10      # seconds before first click
 PROGRESS_UPDATE_INTERVAL = 120     # for long waits
 SHOW_DETAILED_PROGRESS   = False
@@ -188,21 +188,25 @@ def human_move(tx, ty):
     time.sleep(random.uniform(0.08,0.2))
 
 def move_along_curve(pts, steps):
-    p0,p1,p2,p3 = pts['p0'], pts['p1'], pts['p2'], pts['p3']
+    p0, p1, p2, p3 = pts['p0'], pts['p1'], pts['p2'], pts['p3']
     for i in range(steps):
         if not running: break
-        t = (i+1)/steps
-        if t<0.3:
-            te = ease_in_out_cubic(t/0.3)*0.3
-        elif t>0.7:
-            te = 0.7 + ease_in_out_cubic((t-0.7)/0.3)*0.3
+        t = (i + 1) / steps
+        if t < 0.3:
+            te = ease_in_out_cubic(t / 0.3) * 0.3
+        elif t > 0.7:
+            te = 0.7 + ease_in_out_cubic((t - 0.7) / 0.3) * 0.3
         else:
             te = t
-        cx = bezier_curve(te, *[p[k] for k in (0,1,2,3)])
-        cy = bezier_curve(te, *[p[k] for k in (0,1,2,3)])
-        jitter = (1-t)*0.8
-        cx += random.uniform(-jitter, jitter)
-        cy += random.uniform(-jitter, jitter)
+
+        # CORRECTED LINES:
+        cx = bezier_curve(te, p0[0], p1[0], p2[0], p3[0])
+        cy = bezier_curve(te, p0[1], p1[1], p2[1], p3[1])
+
+        jitter_strength = (1 - t) * 0.8
+        cx += random.uniform(-jitter_strength, jitter_strength)
+        cy += random.uniform(-jitter_strength, jitter_strength)
+
         set_mouse_position(cx, cy)
         if random.random()<0.25*(1-t):
             ht = random.uniform(0.02,0.08)

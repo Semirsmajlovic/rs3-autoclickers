@@ -65,7 +65,7 @@ CALIBRATION_KEY   = 'c'
 
 REGION_FILE = 'gnome-agility-course-regions.json'
 
-# ─── Agility Course Obstacles Configuration (Gnome Course) ───────────────────
+# Agility Course Obstacles Configuration
 OBSTACLES = [
     {
         'name': 'Walk Across Log Balance',
@@ -139,10 +139,12 @@ def calibrate_region(name):
     return (x1, y1, x2, y2)
 
 def calibrate_all_regions():
-    print("\n--- Gnome Agility Course Calibration Mode ---")
+    print("\n--- Barbarian Agility Course Calibration Mode ---")
     regions = {}
+    
     for obstacle in OBSTACLES:
         regions[obstacle['region_key']] = calibrate_region(obstacle['name'])
+    
     with open(REGION_FILE, 'w') as f:
         json.dump(regions, f)
     print(f"Regions saved to {REGION_FILE}!")
@@ -233,49 +235,72 @@ def ease_out_quad(t: float) -> float:
 def generate_curve_points(start_x, start_y, end_x, end_y, curve_intensity=0.3):
     mid_x = (start_x + end_x) / 2
     mid_y = (start_y + end_y) / 2
+    
     dx = end_x - start_x
     dy = end_y - start_y
     distance = math.sqrt(dx*dx + dy*dy)
+    
     if distance < 10:
         return None
+    
     perp_x = -dy / distance
     perp_y = dx / distance
+    
     curve_offset = random.uniform(-distance * curve_intensity, distance * curve_intensity)
+    
     control1_x = start_x + dx * 0.25 + perp_x * curve_offset * 0.5
     control1_y = start_y + dy * 0.25 + perp_y * curve_offset * 0.5
     control2_x = start_x + dx * 0.75 + perp_x * curve_offset
     control2_y = start_y + dy * 0.75 + perp_y * curve_offset
-    return {'p0': (start_x, start_y), 'p1': (control1_x, control1_y),
-            'p2': (control2_x, control2_y), 'p3': (end_x, end_y)}
+    
+    return {
+        'p0': (start_x, start_y),
+        'p1': (control1_x, control1_y),
+        'p2': (control2_x, control2_y),
+        'p3': (end_x, end_y)
+    }
 
 def add_distraction_movement():
     if not ENABLE_DISTRACTION_MOVES or random.random() > DISTRACTION_CHANCE:
         return
+    
     current_x, current_y = get_current_mouse_position()
+    
     distraction_x = current_x + random.randint(-400, 400)
     distraction_y = current_y + random.randint(-200, 200)
+    
     distraction_x = max(200, min(3600, distraction_x))
     distraction_y = max(200, min(2000, distraction_y))
+    
     logger.debug(f"🎯 Distraction movement to ({distraction_x}, {distraction_y})")
+    
     simple_move_to(distraction_x, distraction_y, speed_multiplier=1.5)
+    
     time.sleep(random.uniform(0.1, 0.4))
 
 def simple_move_to(to_x, to_y, speed_multiplier=1.0):
     start_x, start_y = get_current_mouse_position()
     distance = math.sqrt((to_x - start_x)**2 + (to_y - start_y)**2)
+    
     if distance < 2:
         return
+    
     steps = int(max(5, min(15, distance / (4 * speed_multiplier))))
+    
     for i in range(steps):
         if not running:
             break
+        
         t = (i + 1) / steps
         t_eased = ease_out_quad(t)
+        
         cur_x = start_x + (to_x - start_x) * t_eased
         cur_y = start_y + (to_y - start_y) * t_eased
+        
         jitter = (1 - t) * 0.3
         cur_x += random.uniform(-jitter, jitter)
         cur_y += random.uniform(-jitter, jitter)
+        
         set_mouse_position(cur_x, cur_y)
         time.sleep(random.uniform(0.005, 0.012) / speed_multiplier)
 
@@ -283,14 +308,20 @@ def human_move(to_x: int, to_y: int):
     global session_stats
     start_x, start_y = get_current_mouse_position()
     distance = math.sqrt((to_x - start_x)**2 + (to_y - start_y)**2)
+
     if distance < 3:
         return
+    
     add_distraction_movement()
+    
     start_x, start_y = get_current_mouse_position()
-    distance = math.sqrt((to_y - start_y)**2 + (to_x - start_x)**2)
+    distance = math.sqrt((to_x - start_x)**2 + (to_y - start_y)**2)
+    
     logger.debug(f"🎯 Enhanced move from ({start_x:.0f}, {start_y:.0f}) to ({to_x}, {to_y}) - Distance: {distance:.1f}px")
+    
     use_curves = ENABLE_CURVED_PATHS and distance > 50 and random.random() < 0.7
     will_overshoot = ENABLE_OVERSHOOT and distance > 30 and random.random() < OVERSHOOT_CHANCE
+    
     target_x, target_y = to_x, to_y
     if will_overshoot:
         overshoot_distance = random.uniform(5, 15)
@@ -298,7 +329,9 @@ def human_move(to_x: int, to_y: int):
         target_x = to_x + overshoot_distance * math.cos(angle)
         target_y = to_y + overshoot_distance * math.sin(angle)
         logger.debug(f"🎯 Overshoot target: ({target_x:.0f}, {target_y:.0f})")
+    
     steps = int(max(10, min(40, distance / 2)))
+    
     if use_curves:
         curve_points = generate_curve_points(start_x, start_y, target_x, target_y, CURVE_INTENSITY)
         if curve_points:
@@ -308,99 +341,140 @@ def human_move(to_x: int, to_y: int):
             move_straight_enhanced(start_x, start_y, target_x, target_y, steps)
     else:
         move_straight_enhanced(start_x, start_y, target_x, target_y, steps)
+    
     if will_overshoot and running:
         logger.debug("🎯 Correcting overshoot...")
         time.sleep(random.uniform(0.05, 0.15))
         correction_steps = random.randint(3, 8)
         current_pos = get_current_mouse_position()
         move_straight_enhanced(current_pos[0], current_pos[1], to_x, to_y, correction_steps)
+    
     if ENABLE_MICRO_CORRECTIONS and random.random() < MICRO_CORRECTION_CHANCE and running:
         time.sleep(random.uniform(0.02, 0.08))
         final_x = to_x + random.uniform(-1, 1)
         final_y = to_y + random.uniform(-1, 1)
         set_mouse_position(final_x, final_y)
         logger.debug(f"🔧 Micro-correction to ({final_x:.0f}, {final_y:.0f})")
+    
     session_stats['total_moves'] += 1
+    
     time.sleep(random.uniform(0.08, 0.2))
 
 def move_along_curve(curve_points, steps, distance):
     p0, p1, p2, p3 = curve_points['p0'], curve_points['p1'], curve_points['p2'], curve_points['p3']
+    
     for i in range(steps):
         if not running:
             break
+        
         t = (i + 1) / steps
+        
         if t < 0.3:
             t_eased = ease_in_out_cubic(t / 0.3) * 0.3
         elif t > 0.7:
             t_eased = 0.7 + ease_in_out_cubic((t - 0.7) / 0.3) * 0.3
         else:
             t_eased = t
+        
         cur_x = bezier_curve(t_eased, p0[0], p1[0], p2[0], p3[0])
         cur_y = bezier_curve(t_eased, p0[1], p1[1], p2[1], p3[1])
+        
         jitter_strength = (1 - t) * 0.8
         cur_x += random.uniform(-jitter_strength, jitter_strength)
         cur_y += random.uniform(-jitter_strength, jitter_strength)
+        
         set_mouse_position(cur_x, cur_y)
+        
         base_sleep = random.uniform(0.008, 0.018)
+        
         if ENABLE_HESITATION and random.random() < HESITATION_CHANCE * (1 - t):
             hesitation_time = random.uniform(0.02, 0.08)
             logger.debug(f"⏸️ Hesitation pause: {hesitation_time:.3f}s")
             time.sleep(hesitation_time)
+        
         if ENABLE_MOMENTUM:
             momentum_factor = 1 - abs(t - 0.5) * 0.4
             base_sleep *= momentum_factor
+        
         time.sleep(base_sleep)
 
 def move_straight_enhanced(start_x, start_y, target_x, target_y, steps):
     for i in range(steps):
         if not running:
             break
+        
         t = (i + 1) / steps
         t_eased = ease_in_out_cubic(t)
+        
         cur_x = start_x + (target_x - start_x) * t_eased
         cur_y = start_y + (target_y - start_y) * t_eased
+        
         jitter_strength = (1 - t) * 0.7
         noise_x = random.uniform(-jitter_strength, jitter_strength)
         noise_y = random.uniform(-jitter_strength, jitter_strength)
+        
         tremor_x = math.sin(t * 20) * 0.1 * jitter_strength
         tremor_y = math.cos(t * 25) * 0.1 * jitter_strength
+        
         cur_x += noise_x + tremor_x
         cur_y += noise_y + tremor_y
+        
         set_mouse_position(cur_x, cur_y)
+        
         base_sleep = random.uniform(0.006, 0.016)
+        
         if ENABLE_HESITATION and random.random() < HESITATION_CHANCE * (1 - t):
             hesitation_time = random.uniform(0.015, 0.06)
             time.sleep(hesitation_time)
+        
         time.sleep(base_sleep)
 
 def random_target_within(region):
     x_min, y_min, x_max, y_max = region
+    
+    # Calculate region dimensions
     width = x_max - x_min
     height = y_max - y_min
+    
+    # Use different distribution strategies for better coverage
     strategy = random.choice(['uniform', 'gaussian_center', 'gaussian_edge', 'corners'])
+    
     if strategy == 'uniform':
-        inset = max(2, min(8, min(width, height) // 20))
+        # Pure uniform distribution across entire region (most common)
+        inset = max(2, min(8, min(width, height) // 20))  # Dynamic inset based on region size
         x = random.randint(x_min + inset, x_max - inset)
         y = random.randint(y_min + inset, y_max - inset)
+        
     elif strategy == 'gaussian_center':
+        # Gaussian distribution centered in the region
         center_x = (x_min + x_max) / 2
         center_y = (y_min + y_max) / 2
+        
+        # Use 1/4 of region size as standard deviation for good spread
         std_x = width / 4
         std_y = height / 4
+        
         x = int(random.gauss(center_x, std_x))
         y = int(random.gauss(center_y, std_y))
+        
     elif strategy == 'gaussian_edge':
+        # Bias toward edges of the region
         if random.random() < 0.5:
+            # Bias toward left/right edges
             edge_x = x_min if random.random() < 0.5 else x_max
             x = int(random.gauss(edge_x, width / 8))
             y = random.randint(y_min + 5, y_max - 5)
         else:
+            # Bias toward top/bottom edges
             edge_y = y_min if random.random() < 0.5 else y_max
             x = random.randint(x_min + 5, x_max - 5)
             y = int(random.gauss(edge_y, height / 8))
-    else:
-        corner_bias = 0.3
+            
+    else:  # corners
+        # Bias toward corners for variety
+        corner_bias = 0.3  # How close to corners
         if random.random() < 0.5:
+            # Top corners
             if random.random() < 0.5:
                 x = int(x_min + width * corner_bias * random.random())
                 y = int(y_min + height * corner_bias * random.random())
@@ -408,16 +482,21 @@ def random_target_within(region):
                 x = int(x_max - width * corner_bias * random.random())
                 y = int(y_min + height * corner_bias * random.random())
         else:
+            # Bottom corners
             if random.random() < 0.5:
                 x = int(x_min + width * corner_bias * random.random())
                 y = int(y_max - height * corner_bias * random.random())
             else:
                 x = int(x_max - width * corner_bias * random.random())
                 y = int(y_max - height * corner_bias * random.random())
+    
+    # Ensure coordinates stay within bounds with minimal inset
     inset = max(1, min(3, min(width, height) // 50))
     x = max(x_min + inset, min(x_max - inset, x))
     y = max(y_min + inset, min(y_max - inset, y))
+    
     logger.debug(f"🎯 Target strategy: {strategy}, coordinates: ({x}, {y}) in region {region}")
+    
     return x, y
 
 def format_time(seconds):
@@ -434,31 +513,31 @@ def print_stats():
     if session_stats['session_start']:
         elapsed = time.time() - session_stats['session_start']
         total_clicks = sum([
-            session_stats['total_walk_across_log_balance_clicks'],
-            session_stats['total_climb_over_obstacle_net_clicks'],
-            session_stats['total_climb_tree_branch_clicks'],
-            session_stats['total_climb_up_tree_clicks'],
-            session_stats['total_run_across_signpost_clicks'],
-            session_stats['total_walk_to_start_of_swing_to_pole_clicks'],
-            session_stats['total_swing_to_pole_clicks'],
-            session_stats['total_jump_over_barrier_clicks'],
-            session_stats['total_go_to_starting_position_clicks']
+            session_stats['total_rope_swing_clicks'],
+            session_stats['total_log_balance_clicks'],
+            session_stats['total_run_up_wall_clicks'],
+            session_stats['total_climb_up_wall_clicks'],
+            session_stats['total_fire_spring_device_clicks'],
+            session_stats['total_cross_balance_beam_clicks'],
+            session_stats['total_jump_over_gap_clicks'],
+            session_stats['total_slide_down_roof_clicks'],
+            session_stats['total_walk_to_start_clicks']
         ])
         clicks_per_min = (total_clicks / elapsed) * 60 if elapsed > 0 else 0
         laps_per_hour = (session_stats['total_laps'] / elapsed) * 3600 if elapsed > 0 else 0
-
+        
         logger.info("=" * 70)
-        logger.info("🏃 GNOME AGILITY COURSE SESSION STATISTICS")
+        logger.info("🏃 BARBARIAN AGILITY COURSE SESSION STATISTICS")
         logger.info("=" * 70)
-        logger.info(f"🪵 Walk Across Log Balance: {session_stats['total_walk_across_log_balance_clicks']}")
-        logger.info(f"🕸️ Climb Over Obstacle Net: {session_stats['total_climb_over_obstacle_net_clicks']}")
-        logger.info(f"🌳 Climb Tree Branch: {session_stats['total_climb_tree_branch_clicks']}")
-        logger.info(f"🧗‍♂️ Climb Up Tree: {session_stats['total_climb_up_tree_clicks']}")
-        logger.info(f"🏃‍♂️ Run Across Signpost: {session_stats['total_run_across_signpost_clicks']}")
-        logger.info(f"🚶‍♂️ Walk to Start of Swing to Pole: {session_stats['total_walk_to_start_of_swing_to_pole_clicks']}")
-        logger.info(f"🪢 Swing to Pole: {session_stats['total_swing_to_pole_clicks']}")
-        logger.info(f"🦘 Jump Over Barrier: {session_stats['total_jump_over_barrier_clicks']}")
-        logger.info(f"🎯 Go to Starting Position: {session_stats['total_go_to_starting_position_clicks']}")
+        logger.info(f"🪢 Rope Swing: {session_stats['total_rope_swing_clicks']}")
+        logger.info(f"🪵 Log Balance: {session_stats['total_log_balance_clicks']}")
+        logger.info(f"🏃 Run-up Wall: {session_stats['total_run_up_wall_clicks']}")
+        logger.info(f"🧗 Climb-up Wall: {session_stats['total_climb_up_wall_clicks']}")
+        logger.info(f"🔥 Fire Spring Device: {session_stats['total_fire_spring_device_clicks']}")
+        logger.info(f"⚖️ Cross Balance Beam: {session_stats['total_cross_balance_beam_clicks']}")
+        logger.info(f"🦘 Jump over Gap: {session_stats['total_jump_over_gap_clicks']}")
+        logger.info(f"🛝 Slide-down Roof: {session_stats['total_slide_down_roof_clicks']}")
+        logger.info(f"🚶 Walk to Start: {session_stats['total_walk_to_start_clicks']}")
         logger.info(f"🏁 Total Laps: {session_stats['total_laps']}")
         logger.info(f"📍 Total Moves: {session_stats['total_moves']}")
         logger.info(f"☕ Total Breaks: {session_stats['total_breaks']}")
@@ -469,25 +548,36 @@ def print_stats():
 
 def click_obstacle(obstacle_index):
     global session_stats
+    
     obstacle = OBSTACLES[obstacle_index]
     region_key = obstacle['region_key']
+    
     if region_key not in regions:
         logger.error(f"❌ Region not found for {obstacle['name']}! Please calibrate.")
         return False
+    
     region = tuple(regions[region_key])
+    
     logger.info(f"{obstacle['emoji']} Clicking {obstacle['name']}...")
     tx, ty = random_target_within(region)
     logger.info(f"🎯 Moving to {obstacle['name']}: ({tx}, {ty})")
     human_move(tx, ty)
+    
     if not running:
         return False
+    
     current_x, current_y = get_current_mouse_position()
-    set_mouse_position(current_x + random.uniform(-0.8, 0.8),
-                       current_y + random.uniform(-0.8, 0.8))
+    set_mouse_position(current_x + random.uniform(-0.8, 0.8), 
+                     current_y + random.uniform(-0.8, 0.8))
+    
     time.sleep(random.uniform(0.03, 0.12))
+    
     send_native_click(*get_current_mouse_position())
+    
+    # Update stats
     stats_key = f"total_{obstacle['name'].lower().replace('-', '_').replace(' ', '_')}_clicks"
     session_stats[stats_key] += 1
+    
     logger.info(f"✅ {obstacle['name']} click #{session_stats[stats_key]} completed at {get_current_mouse_position()}")
     return True
 
@@ -497,19 +587,25 @@ def smart_wait(wait_time, action_description="next action"):
         while running and time.time() < end_time:
             time.sleep(min(5, wait_time))
         return
+    
     logger.info(f"⏰ Waiting {wait_time:.1f}s until {action_description}...")
+    
     end_time = time.time() + wait_time
     last_progress_time = time.time()
+    
     while running and time.time() < end_time:
         remaining = end_time - time.time()
         current_time = time.time()
-        if (SHOW_DETAILED_PROGRESS and
-            current_time - last_progress_time >= PROGRESS_UPDATE_INTERVAL and
+        
+        if (SHOW_DETAILED_PROGRESS and 
+            current_time - last_progress_time >= PROGRESS_UPDATE_INTERVAL and 
             remaining > 60):
+            
             minutes = int(remaining // 60)
             logger.info(f"⏳ {minutes}m remaining until {action_description}...")
             logger.handlers[0].flush()
             last_progress_time = current_time
+        
         if remaining > 120:
             time.sleep(30)
         elif remaining > 60:
@@ -521,11 +617,15 @@ def smart_wait(wait_time, action_description="next action"):
 
 def agility_course_loop():
     global current_obstacle, lap_count, running, session_stats
-    logger.info("🏃 Starting Gnome Agility Course automation. Press '`' to stop, '~' to exit.")
+
+    logger.info("🏃 Starting Barbarian Agility Course automation. Press '`' to stop, '~' to exit.")
+    
+    # Print all regions
     for obstacle in OBSTACLES:
-        key = obstacle['region_key']
-        if key in regions:
-            logger.info(f"{obstacle['emoji']} {obstacle['name']} Region: {regions[key]}")
+        region_key = obstacle['region_key']
+        if region_key in regions:
+            logger.info(f"{obstacle['emoji']} {obstacle['name']} Region: {regions[region_key]}")
+    
     logger.info(f"⏳ Initial delay: {INITIAL_DELAY_SEC} seconds to switch screens...")
     for i in range(INITIAL_DELAY_SEC, 0, -1):
         if not running:
@@ -533,55 +633,86 @@ def agility_course_loop():
             return
         logger.info(f"⏳ Starting in {i} seconds...")
         time.sleep(1)
+    
     logger.info("🏃 Starting agility course NOW!")
+    
     current_obstacle = 0
+    
     while running:
         try:
+            # Click current obstacle
+            obstacle = OBSTACLES[current_obstacle]
+            
             if not click_obstacle(current_obstacle):
                 break
-            min_dur, max_dur = OBSTACLES[current_obstacle]['duration']
-            wait_time = random.uniform(min_dur, max_dur)
-            next_name = OBSTACLES[(current_obstacle + 1) % len(OBSTACLES)]['name']
-            smart_wait(wait_time, f"completing {OBSTACLES[current_obstacle]['name']} -> {next_name}")
+            
+            # Wait for obstacle completion
+            min_duration, max_duration = obstacle['duration']
+            wait_time = random.uniform(min_duration, max_duration)
+            
+            next_obstacle_name = OBSTACLES[(current_obstacle + 1) % len(OBSTACLES)]['name']
+            smart_wait(wait_time, f"completing {obstacle['name']} -> {next_obstacle_name}")
+            
+            # Move to next obstacle
             current_obstacle = (current_obstacle + 1) % len(OBSTACLES)
+            
+            # Check if we completed a full lap
             if current_obstacle == 0:
                 lap_count += 1
                 session_stats['total_laps'] += 1
-                logger.info(f"🏁 ==== Lap #{lap_count} completed! ====")
+                logger.info(f"🏁 ======================================== Lap #{lap_count} completed!")
+                
+                # Print stats every 5 laps
                 if lap_count % 5 == 0:
                     print_stats()
                     if FORCE_GARBAGE_COLLECTION:
                         gc.collect()
+                
+                # Take break every few laps
                 if lap_count % MIN_LAPS_BEFORE_BREAK == 0:
+                    break_duration = random.uniform(BREAK_MIN_SEC, BREAK_MAX_SEC)
                     session_stats['total_breaks'] += 1
-                    break_dur = random.uniform(BREAK_MIN_SEC, BREAK_MAX_SEC)
-                    logger.info(f"☕ Break #{session_stats['total_breaks']} for {break_dur:.1f}s after {lap_count} laps...")
-                    smart_wait(break_dur, "break completion")
+                    logger.info(f"☕ Taking break #{session_stats['total_breaks']} for {break_duration:.1f}s after {lap_count} laps...")
+                    
+                    smart_wait(break_duration, "break completion")
+                    
                     if running:
-                        logger.info("🔄 Break finished, resuming...")
+                        logger.info("🔄 Break finished, resuming agility course...")
+                        
         except Exception as e:
-            logger.error(f"❌ Error in loop: {e}")
+            logger.error(f"❌ Error in agility course loop: {e}")
             break
+    
     logger.info("⏸️  Agility course loop stopped.")
 
+# ─── Console Keyboard Monitoring ───────────────────────────────────────────────
+
 def keyboard_monitor():
-    logger.info("⌨️  Keyboard monitor: '`' to start/stop, '~' to exit, 'c' to calibrate")
+    """Console-based keyboard monitoring using msvcrt"""
+    logger.info("⌨️  Keyboard monitoring started. Press '`' to start/stop, '~' to exit, 'c' for calibration")
+    logger.info("💡 Note: Make sure this console window is focused for key detection")
+    
     try:
         while True:
             if msvcrt.kbhit():
                 key = msvcrt.getch().decode('utf-8').lower()
+                
                 if key == '`':
-                    handle_start_stop(); time.sleep(0.3)
+                    handle_start_stop()
+                    time.sleep(0.3)  # Prevent multiple triggers
                 elif key == '~':
-                    handle_exit(); break
+                    handle_exit()
+                    break
                 elif key == 'c':
-                    handle_calibration(); time.sleep(0.3)
+                    handle_calibration()
+                    time.sleep(0.3)  # Prevent multiple triggers
             else:
-                time.sleep(0.05)
+                time.sleep(0.05)  # Short sleep when no key is pressed
+                
     except KeyboardInterrupt:
-        logger.info("👋 Interrupted by user")
+        logger.info("👋 Script interrupted by user")
     except Exception as e:
-        logger.error(f"❌ Keyboard monitor error: {e}")
+        logger.error(f"❌ Error in keyboard monitor: {e}")
 
 def handle_start_stop():
     global running, click_thread, session_stats
@@ -589,23 +720,24 @@ def handle_start_stop():
         running = True
         session_stats['session_start'] = time.time()
         logger.info("▶️  AUTOMATION STARTED")
+        logger.info(f"🎮 Controls: Press '`' to stop, '~' to exit")
         click_thread = threading.Thread(target=agility_course_loop, daemon=True)
         click_thread.start()
     else:
         running = False
         logger.info("⏸️  AUTOMATION PAUSED")
         if click_thread and click_thread.is_alive():
-            logger.info("⏳ Waiting for current action...")
+            logger.info("⏳ Waiting for current action to complete...")
             click_thread.join(timeout=5)
         print_stats()
-        logger.info("▶️  Press '`' to resume, '~' to exit")
+        logger.info(f"🎮 Press '`' to resume, '~' to exit")
 
 def handle_exit():
     global running, click_thread
     logger.info("🛑 EXIT REQUESTED")
     running = False
     if click_thread and click_thread.is_alive():
-        logger.info("⏳ Waiting to stop...")
+        logger.info("⏳ Waiting for automation to stop...")
         click_thread.join(timeout=5)
     print_stats()
     logger.info("👋 Goodbye!")
@@ -613,29 +745,74 @@ def handle_exit():
 
 def handle_calibration():
     global regions
-    logger.info("🎯 CALIBRATION MODE")
+    logger.info("🎯 CALIBRATION MODE - Recalibrating all regions")
     regions = calibrate_all_regions()
-    logger.info("✅ Calibration complete!")
+    logger.info("✅ Calibration complete! New regions saved.")
 
 def main():
-    logger.info("🏃 Gnome Agility Course Automation")
+    logger.info("🏃 Enhanced Anti-Bot Barbarian Agility Course Automation")
     logger.info("=" * 70)
-    logger.info(f"⌨️  START/STOP: `{}`".format(START_STOP_KEY))
-    logger.info(f"⌨️  EXIT: `{}`".format(EXIT_KEY))
-    logger.info(f"🎯 CALIBRATE: `{}`".format(CALIBRATION_KEY))
+    logger.info(f"⌨️  START/STOP: Press '`' (backtick)")
+    logger.info(f"⌨️  EXIT: Press '~' (tilde)")
+    logger.info(f"🎯 CALIBRATION: Press 'c' to recalibrate all regions")
     logger.info("─" * 70)
-    logger.info("🖥️  OBSTACLES:")
-    for i, obs in enumerate(OBSTACLES, 1):
-        key = obs['region_key']
-        dur = obs['duration']
-        if key in regions:
-            logger.info(f"{obs['emoji']} {i}. {obs['name']}: {regions[key]} ({dur[0]:.1f}-{dur[1]:.1f}s)")
+    logger.info("🖥️  AGILITY COURSE CONFIGURATION:")
+    
+    for i, obstacle in enumerate(OBSTACLES, 1):
+        region_key = obstacle['region_key']
+        if region_key in regions:
+            duration = obstacle['duration']
+            logger.info(f"{obstacle['emoji']} {i}. {obstacle['name']}: {regions[region_key]} ({duration[0]:.1f}-{duration[1]:.1f}s)")
         else:
-            logger.warning(f"{i}. {obs['name']}: NOT CALIBRATED")
+            logger.warning(f"❌ {i}. {obstacle['name']}: NOT CALIBRATED")
+    
     logger.info("─" * 70)
-    logger.info("💡 Ready! Press '`' to start.")
+    logger.info("🤖 ANTI-BOT DETECTION FEATURES:")
+    logger.info(f"🏹 Curved Paths: {'✅ Enabled' if ENABLE_CURVED_PATHS else '❌ Disabled'}")
+    logger.info(f"🎯 Overshoot Correction: {'✅ Enabled' if ENABLE_OVERSHOOT else '❌ Disabled'} ({OVERSHOOT_CHANCE*100:.0f}% chance)")
+    logger.info(f"⏸️ Hesitation Pauses: {'✅ Enabled' if ENABLE_HESITATION else '❌ Disabled'} ({HESITATION_CHANCE*100:.0f}% chance)")
+    logger.info(f"🔧 Micro Corrections: {'✅ Enabled' if ENABLE_MICRO_CORRECTIONS else '❌ Disabled'} ({MICRO_CORRECTION_CHANCE*100:.0f}% chance)")
+    logger.info(f"🌊 Momentum Simulation: {'✅ Enabled' if ENABLE_MOMENTUM else '❌ Disabled'}")
+    logger.info(f"👀 Distraction Moves: {'✅ Enabled' if ENABLE_DISTRACTION_MOVES else '❌ Disabled'} ({DISTRACTION_CHANCE*100:.0f}% chance)")
+    logger.info(f"🎨 Curve Intensity: {CURVE_INTENSITY*100:.0f}%")
+    logger.info("─" * 70)
+    logger.info(f"☕ Break Every: {MIN_LAPS_BEFORE_BREAK} laps")
+    logger.info(f"⏳ Initial Delay: {INITIAL_DELAY_SEC} seconds")
+    logger.info(f"📊 Progress Updates: Every {PROGRESS_UPDATE_INTERVAL}s for long waits")
+    logger.info("=" * 70)
+    logger.info("🏃 AGILITY COURSE SEQUENCE:")
+    
+    for i, obstacle in enumerate(OBSTACLES, 1):
+        duration = obstacle['duration']
+        logger.info(f"{obstacle['emoji']} {i}. {obstacle['name']} ({duration[0]:.1f}-{duration[1]:.1f}s)")
+        if i < len(OBSTACLES):
+            logger.info("   ⬇️")
+    
+    logger.info("   🔄 Loop back to start")
+    logger.info("=" * 70)
+    
+    # Check if all regions are calibrated
+    missing_regions = []
+    for obstacle in OBSTACLES:
+        if obstacle['region_key'] not in regions:
+            missing_regions.append(obstacle['name'])
+    
+    if missing_regions:
+        logger.warning(f"❌ Missing calibration for: {', '.join(missing_regions)}")
+        logger.warning("⚠️  Please press 'c' to calibrate all regions before starting!")
+    else:
+        logger.info("✅ All regions calibrated and ready!")
+    
+    logger.info("💡 Ready! Press '`' (backtick) to start automation...")
+    logger.info("💡 Enhanced with human-like movement patterns to avoid detection!")
+    logger.info("💡 Tip: Adjust anti-bot settings at top of script to customize behavior")
+    logger.info("💡 Tip: Press 'c' to recalibrate all obstacle regions")
+    logger.info("💡 Tip: Using pure Windows API - no pynput detection!")
+    
     try:
         keyboard_monitor()
+    except KeyboardInterrupt:
+        logger.info("👋 Script interrupted by user")
     except Exception as e:
         logger.error(f"❌ Fatal error: {e}")
 

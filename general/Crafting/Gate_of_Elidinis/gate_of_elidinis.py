@@ -76,7 +76,7 @@ STEPS = [
     {
         'name': 'Gather Moonstone',
         'emoji': '🌙',
-        'duration': (117.0, 127.0),  # 1min 57sec to 2min 7sec
+        'duration': (117.0, 124.0),  # 1min 57sec to 2min 4sec
         'region_key': 'GATHER_MOONSTONE_REGION'
     }
 ]
@@ -394,14 +394,47 @@ def random_target_within(region):
     width = x_max - x_min
     height = y_max - y_min
     
-    # Use different distribution strategies for better coverage
+    # For very small regions, use simple center-biased approach
+    if width <= 5 or height <= 5:
+        logger.debug(f"🎯 Small region detected ({width}x{height}), using center-biased approach")
+        center_x = (x_min + x_max) / 2
+        center_y = (y_min + y_max) / 2
+        
+        # Add small random offset from center
+        offset_x = random.uniform(-width/4, width/4)
+        offset_y = random.uniform(-height/4, height/4)
+        
+        x = int(center_x + offset_x)
+        y = int(center_y + offset_y)
+        
+        # Clamp to region bounds
+        x = max(x_min, min(x_max, x))
+        y = max(y_min, min(y_max, y))
+        
+        logger.debug(f"🎯 Small region target: ({x}, {y}) in region {region}")
+        return x, y
+    
+    # Use different distribution strategies for better coverage on larger regions
     strategy = random.choice(['uniform', 'gaussian_center', 'gaussian_edge', 'corners'])
     
     if strategy == 'uniform':
         # Pure uniform distribution across entire region (most common)
-        inset = max(2, min(8, min(width, height) // 20))  # Dynamic inset based on region size
-        x = random.randint(x_min + inset, x_max - inset)
-        y = random.randint(y_min + inset, y_max - inset)
+        inset = max(1, min(3, min(width, height) // 20))  # Conservative inset for small regions
+        
+        # Ensure we don't get empty ranges
+        x_min_safe = x_min + inset
+        x_max_safe = x_max - inset
+        y_min_safe = y_min + inset
+        y_max_safe = y_max - inset
+        
+        # If inset makes range invalid, fall back to full region
+        if x_min_safe >= x_max_safe:
+            x_min_safe, x_max_safe = x_min, x_max
+        if y_min_safe >= y_max_safe:
+            y_min_safe, y_max_safe = y_min, y_max
+            
+        x = random.randint(x_min_safe, x_max_safe)
+        y = random.randint(y_min_safe, y_max_safe)
         
     elif strategy == 'gaussian_center':
         # Gaussian distribution centered in the region
@@ -409,8 +442,8 @@ def random_target_within(region):
         center_y = (y_min + y_max) / 2
         
         # Use 1/4 of region size as standard deviation for good spread
-        std_x = width / 4
-        std_y = height / 4
+        std_x = max(1, width / 4)  # Ensure std deviation is at least 1
+        std_y = max(1, height / 4)
         
         x = int(random.gauss(center_x, std_x))
         y = int(random.gauss(center_y, std_y))
@@ -420,13 +453,25 @@ def random_target_within(region):
         if random.random() < 0.5:
             # Bias toward left/right edges
             edge_x = x_min if random.random() < 0.5 else x_max
-            x = int(random.gauss(edge_x, width / 8))
-            y = random.randint(y_min + 5, y_max - 5)
+            x = int(random.gauss(edge_x, max(1, width / 8)))
+            
+            # Safe y range
+            y_min_safe = y_min + 2
+            y_max_safe = y_max - 2
+            if y_min_safe >= y_max_safe:
+                y_min_safe, y_max_safe = y_min, y_max
+            y = random.randint(y_min_safe, y_max_safe)
         else:
             # Bias toward top/bottom edges
             edge_y = y_min if random.random() < 0.5 else y_max
-            x = random.randint(x_min + 5, x_max - 5)
-            y = int(random.gauss(edge_y, height / 8))
+            y = int(random.gauss(edge_y, max(1, height / 8)))
+            
+            # Safe x range
+            x_min_safe = x_min + 2
+            x_max_safe = x_max - 2
+            if x_min_safe >= x_max_safe:
+                x_min_safe, x_max_safe = x_min, x_max
+            x = random.randint(x_min_safe, x_max_safe)
             
     else:  # corners
         # Bias toward corners for variety
@@ -448,10 +493,9 @@ def random_target_within(region):
                 x = int(x_max - width * corner_bias * random.random())
                 y = int(y_max - height * corner_bias * random.random())
     
-    # Ensure coordinates stay within bounds with minimal inset
-    inset = max(1, min(3, min(width, height) // 50))
-    x = max(x_min + inset, min(x_max - inset, x))
-    y = max(y_min + inset, min(y_max - inset, y))
+    # Final bounds check - ensure coordinates stay within region
+    x = max(x_min, min(x_max, x))
+    y = max(y_min, min(y_max, y))
     
     logger.debug(f"🎯 Target strategy: {strategy}, coordinates: ({x}, {y}) in region {region}")
     

@@ -99,7 +99,7 @@ def load_regions():
 
 regions = load_regions()
 
-MIN_CLICKS_BEFORE_BREAK = 10
+MIN_CLICKS_BEFORE_BREAK = 40
 BREAK_MIN_SEC     = 15
 BREAK_MAX_SEC     = 45
 INITIAL_DELAY_SEC = 10

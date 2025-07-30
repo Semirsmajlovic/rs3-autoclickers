@@ -60,7 +60,7 @@ REGION_FILE = 'colonised-varrock-guard-regions.json'
 GUARD_CONFIG = {
     'name': 'Click Colonised Varrock Guard',
     'emoji': '⚔️',
-    'duration': (30.0, 70.0),  # 30-70 seconds
+    'duration': (30.0, 50.0),  # 30-50 seconds
     'region_key': 'COLONISED_VARROCK_GUARD_REGION'
 }
 

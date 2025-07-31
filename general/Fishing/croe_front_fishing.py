@@ -18,12 +18,15 @@ import json
 running = False
 click_count = 0
 click_thread = None
+keybind_thread = None
 start_time = None
+last_keybind_time = None
 session_stats = {
     'total_colonised_varrock_guard_clicks': 0,
     'total_moves': 0,
     'total_breaks': 0,
     'total_cycles': 0,
+    'total_keybind_presses': 0,
     'session_start': None
 }
 
@@ -62,6 +65,15 @@ GUARD_CONFIG = {
     'emoji': '⚔️',
     'duration': (20.0, 40.0),  # 20-40 seconds
     'region_key': 'COLONISED_VARROCK_GUARD_REGION'
+}
+
+# Keybind Configuration
+KEYBIND_CONFIG = {
+    'enabled': True,
+    'key': '0',
+    'interval_min': 15 * 60,  # 15 minutes in seconds
+    'interval_max': 15.5 * 60,  # 15 minutes 30 seconds
+    'emoji': '⌨️'
 }
 
 # ─── Calibration ──────────────────────────────────────────────────────────────
@@ -120,6 +132,78 @@ OVERSHOOT_CHANCE = 0.15
 HESITATION_CHANCE = 0.25
 DISTRACTION_CHANCE = 0.08
 MICRO_CORRECTION_CHANCE = 0.4
+
+# ─── Windows API Keyboard Input ───────────────────────────────────────────────
+def send_key_press(key_char):
+    """Send a key press using Windows API - works globally regardless of focus"""
+    try:
+        # Get virtual key code for the character
+        vk_code = ord(key_char.upper())
+        
+        # Key down
+        windll.user32.keybd_event(vk_code, 0, 0, 0)
+        time.sleep(0.05)  # Brief hold
+        # Key up
+        windll.user32.keybd_event(vk_code, 0, 2, 0)  # 2 = KEYEVENTF_KEYUP
+        
+        logger.info(f"⌨️ Key '{key_char}' pressed successfully")
+        return True
+    except Exception as e:
+        logger.error(f"❌ Failed to send key '{key_char}': {e}")
+        return False
+
+def keybind_loop():
+    """Background thread that handles periodic keybind presses"""
+    global last_keybind_time, session_stats
+    
+    if not KEYBIND_CONFIG['enabled']:
+        logger.info("⌨️ Keybind loop disabled in configuration")
+        return
+    
+    logger.info(f"⌨️ Starting keybind loop - will press '{KEYBIND_CONFIG['key']}' every {KEYBIND_CONFIG['interval_min']/60:.1f}-{KEYBIND_CONFIG['interval_max']/60:.1f} minutes")
+    
+    last_keybind_time = time.time()
+    
+    while running:
+        try:
+            current_time = time.time()
+            
+            # Calculate next keybind interval
+            next_interval = random.uniform(KEYBIND_CONFIG['interval_min'], KEYBIND_CONFIG['interval_max'])
+            next_keybind_time = last_keybind_time + next_interval
+            
+            # Wait until it's time for the next keybind
+            while running and current_time < next_keybind_time:
+                time.sleep(10)  # Check every 10 seconds
+                current_time = time.time()
+                
+                # Log upcoming keybind if within 1 minute
+                time_until_keybind = next_keybind_time - current_time
+                if time_until_keybind <= 60 and time_until_keybind > 50:
+                    logger.info(f"⌨️ Next '{KEYBIND_CONFIG['key']}' keybind in {time_until_keybind:.0f} seconds...")
+            
+            if not running:
+                break
+            
+            # Execute keybind
+            logger.info(f"{KEYBIND_CONFIG['emoji']} Executing periodic keybind: '{KEYBIND_CONFIG['key']}'")
+            
+            if send_key_press(KEYBIND_CONFIG['key']):
+                session_stats['total_keybind_presses'] += 1
+                last_keybind_time = time.time()
+                
+                # Log next keybind time
+                next_interval = random.uniform(KEYBIND_CONFIG['interval_min'], KEYBIND_CONFIG['interval_max'])
+                next_time_formatted = format_time(next_interval)
+                logger.info(f"✅ Keybind #{session_stats['total_keybind_presses']} completed. Next in {next_time_formatted}")
+            else:
+                logger.warning("⚠️ Keybind failed, will retry next cycle")
+                
+        except Exception as e:
+            logger.error(f"❌ Error in keybind loop: {e}")
+            time.sleep(30)  # Wait before retrying
+    
+    logger.info("⏸️ Keybind loop stopped.")
 
 # ─── Native Windows Mouse Click with ctypes/SendInput ─────────────────────────
 PUL = ctypes.POINTER(ctypes.c_ulong)
@@ -498,16 +582,19 @@ def print_stats():
         total_clicks = session_stats['total_colonised_varrock_guard_clicks']
         clicks_per_min = (total_clicks / elapsed) * 60 if elapsed > 0 else 0
         clicks_per_hour = (total_clicks / elapsed) * 3600 if elapsed > 0 else 0
+        keybind_per_hour = (session_stats['total_keybind_presses'] / elapsed) * 3600 if elapsed > 0 else 0
         
         logger.info("=" * 70)
         logger.info("⚔️ COLONISED VARROCK GUARD SESSION STATISTICS")
         logger.info("=" * 70)
         logger.info(f"⚔️ Colonised Varrock Guard Clicks: {session_stats['total_colonised_varrock_guard_clicks']}")
+        logger.info(f"⌨️ Keybind Presses ('{KEYBIND_CONFIG['key']}'): {session_stats['total_keybind_presses']}")
         logger.info(f"📍 Total Moves: {session_stats['total_moves']}")
         logger.info(f"☕ Total Breaks: {session_stats['total_breaks']}")
         logger.info(f"⏱️  Session Time: {format_time(elapsed)}")
         logger.info(f"⚡ Clicks/Min: {clicks_per_min:.1f}")
         logger.info(f"⚡ Clicks/Hour: {clicks_per_hour:.1f}")
+        logger.info(f"⌨️ Keybinds/Hour: {keybind_per_hour:.1f}")
         logger.info("=" * 70)
 
 def click_guard():
@@ -667,30 +754,52 @@ def keyboard_monitor():
         logger.error(f"❌ Error in keyboard monitor: {e}")
 
 def handle_start_stop():
-    global running, click_thread, session_stats
+    global running, click_thread, keybind_thread, session_stats
     if not running:
         running = True
         session_stats['session_start'] = time.time()
         logger.info("▶️  AUTOMATION STARTED")
         logger.info(f"🎮 Controls: Press '`' to stop, '~' to exit")
+        
+        # Start both threads
         click_thread = threading.Thread(target=guard_clicking_loop, daemon=True)
         click_thread.start()
+        
+        if KEYBIND_CONFIG['enabled']:
+            keybind_thread = threading.Thread(target=keybind_loop, daemon=True)
+            keybind_thread.start()
+            logger.info(f"⌨️ Keybind automation started - pressing '{KEYBIND_CONFIG['key']}' every {KEYBIND_CONFIG['interval_min']/60:.1f}-{KEYBIND_CONFIG['interval_max']/60:.1f} minutes")
+        
     else:
         running = False
         logger.info("⏸️  AUTOMATION PAUSED")
+        
+        # Wait for threads to finish
         if click_thread and click_thread.is_alive():
-            logger.info("⏳ Waiting for current action to complete...")
+            logger.info("⏳ Waiting for guard clicking to complete...")
             click_thread.join(timeout=5)
+            
+        if keybind_thread and keybind_thread.is_alive():
+            logger.info("⏳ Waiting for keybind thread to complete...")
+            keybind_thread.join(timeout=5)
+            
         print_stats()
         logger.info(f"🎮 Press '`' to resume, '~' to exit")
 
 def handle_exit():
-    global running, click_thread
+    global running, click_thread, keybind_thread
     logger.info("🛑 EXIT REQUESTED")
     running = False
+    
+    # Wait for both threads
     if click_thread and click_thread.is_alive():
-        logger.info("⏳ Waiting for automation to stop...")
+        logger.info("⏳ Waiting for guard automation to stop...")
         click_thread.join(timeout=5)
+        
+    if keybind_thread and keybind_thread.is_alive():
+        logger.info("⏳ Waiting for keybind automation to stop...")
+        keybind_thread.join(timeout=5)
+        
     print_stats()
     logger.info("👋 Goodbye!")
     sys.exit(0)
@@ -702,12 +811,12 @@ def handle_calibration():
     logger.info("✅ Calibration complete! New region saved.")
 
 def main():
-    logger.info("⚔️ Enhanced Anti-Bot Colonised Varrock Guard Automation")
-    logger.info("=" * 70)
+    logger.info("⚔️ Enhanced Anti-Bot Colonised Varrock Guard Automation with Keybinds")
+    logger.info("=" * 80)
     logger.info(f"⌨️  START/STOP: Press '`' (backtick)")
     logger.info(f"⌨️  EXIT: Press '~' (tilde)")
     logger.info(f"🎯 CALIBRATION: Press 'c' to recalibrate guard region")
-    logger.info("─" * 70)
+    logger.info("─" * 80)
     logger.info("🖥️  COLONISED VARROCK GUARD CONFIGURATION:")
     
     region_key = GUARD_CONFIG['region_key']
@@ -717,7 +826,15 @@ def main():
     else:
         logger.warning(f"❌ {GUARD_CONFIG['name']}: NOT CALIBRATED")
     
-    logger.info("─" * 70)
+    logger.info("─" * 80)
+    logger.info("⌨️  KEYBIND CONFIGURATION:")
+    if KEYBIND_CONFIG['enabled']:
+        logger.info(f"{KEYBIND_CONFIG['emoji']} Periodic Key Press: '{KEYBIND_CONFIG['key']}' every {KEYBIND_CONFIG['interval_min']/60:.1f}-{KEYBIND_CONFIG['interval_max']/60:.1f} minutes")
+        logger.info(f"✅ Keybind automation: ENABLED")
+    else:
+        logger.info(f"❌ Keybind automation: DISABLED")
+    
+    logger.info("─" * 80)
     logger.info("🤖 ANTI-BOT DETECTION FEATURES:")
     logger.info(f"🏹 Curved Paths: {'✅ Enabled' if ENABLE_CURVED_PATHS else '❌ Disabled'}")
     logger.info(f"🎯 Overshoot Correction: {'✅ Enabled' if ENABLE_OVERSHOOT else '❌ Disabled'} ({OVERSHOOT_CHANCE*100:.0f}% chance)")
@@ -726,19 +843,21 @@ def main():
     logger.info(f"🌊 Momentum Simulation: {'✅ Enabled' if ENABLE_MOMENTUM else '❌ Disabled'}")
     logger.info(f"👀 Distraction Moves: {'✅ Enabled' if ENABLE_DISTRACTION_MOVES else '❌ Disabled'} ({DISTRACTION_CHANCE*100:.0f}% chance)")
     logger.info(f"🎨 Curve Intensity: {CURVE_INTENSITY*100:.0f}%")
-    logger.info("─" * 70)
+    logger.info("─" * 80)
     logger.info(f"☕ Break Every: {MIN_CLICKS_BEFORE_BREAK} clicks")
     logger.info(f"⏳ Initial Delay: {INITIAL_DELAY_SEC} seconds")
     logger.info(f"📊 Progress Updates: Every {PROGRESS_UPDATE_INTERVAL}s for long waits")
     logger.info(f"⏰ Guard Respawn Time: {GUARD_CONFIG['duration'][0]:.0f}-{GUARD_CONFIG['duration'][1]:.0f} seconds")
-    logger.info("=" * 70)
-    logger.info("⚔️ COLONISED VARROCK GUARD SEQUENCE:")
+    logger.info("=" * 80)
+    logger.info("⚔️ AUTOMATION SEQUENCE:")
     logger.info(f"{GUARD_CONFIG['emoji']} 1. {GUARD_CONFIG['name']} ({GUARD_CONFIG['duration'][0]:.0f}-{GUARD_CONFIG['duration'][1]:.0f}s)")
+    if KEYBIND_CONFIG['enabled']:
+        logger.info(f"{KEYBIND_CONFIG['emoji']} 2. Periodic '{KEYBIND_CONFIG['key']}' key press every {KEYBIND_CONFIG['interval_min']/60:.1f}-{KEYBIND_CONFIG['interval_max']/60:.1f} minutes (background)")
     logger.info("   ⬇️")
     logger.info("   ⏰ Wait for respawn")
     logger.info("   ⬇️")
     logger.info("   🔄 Loop back to step 1")
-    logger.info("=" * 70)
+    logger.info("=" * 80)
     
     # Check if region is calibrated
     if GUARD_CONFIG['region_key'] not in regions:
@@ -749,10 +868,11 @@ def main():
     
     logger.info("💡 Ready! Press '`' (backtick) to start automation...")
     logger.info("💡 Enhanced with human-like movement patterns to avoid detection!")
+    logger.info("💡 Now includes periodic keybind automation for enhanced realism!")
     logger.info("💡 Tip: Adjust anti-bot settings at top of script to customize behavior")
     logger.info("💡 Tip: Press 'c' to recalibrate the guard region")
     logger.info("💡 Tip: Using pure Windows API - no pynput detection!")
-    logger.info("💡 Simple loop: Click Guard → Wait 30-70s → Repeat")
+    logger.info(f"💡 Keybind '{KEYBIND_CONFIG['key']}' will be pressed every {KEYBIND_CONFIG['interval_min']/60:.1f}-{KEYBIND_CONFIG['interval_max']/60:.1f} minutes automatically")
     
     try:
         keyboard_monitor()

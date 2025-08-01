@@ -69,7 +69,7 @@ SPACEBAR_CONFIG = {
     'enabled': True,
     'key': ' ',  # Spacebar
     'delay_after_click': (3.0, 5.0),  # 3-5 seconds after furnace click
-    'cycle_duration': (146.0, 160.0),  # 146-160 seconds total cycle time
+    'cycle_duration': (146.0, 152.0),  # 146-152 seconds total cycle time
     'emoji': '⌨️'
 }
 

@@ -16,12 +16,14 @@ import json
 
 # Global state variables (must be at the very top)
 running = False
-click_count = 0
+current_step = 0
+cycle_count = 0
 click_thread = None
 start_time = None
 session_stats = {
-    'total_portable_clicks': 0,
-    'total_spacebar_presses': 0,
+    'total_withdraw_eternal_magic_logs_clicks': 0,
+    'total_click_on_bonfire_clicks': 0,
+    'total_click_on_bank_chest_clicks': 0,
     'total_moves': 0,
     'total_breaks': 0,
     'total_cycles': 0,
@@ -55,23 +57,29 @@ START_STOP_KEY    = '`'
 EXIT_KEY          = '~'
 CALIBRATION_KEY   = 'c'
 
-REGION_FILE = 'portable-regions.json'
+REGION_FILE = 'bonfire-automation-regions.json'
 
-# Portable Configuration
-PORTABLE_CONFIG = {
-    'name': 'Click Portable',
-    'emoji': '🎒',
-    'region_key': 'PORTABLE_REGION'
-}
-
-# Spacebar Configuration (3-5 seconds after portable click, then wait 182-190 seconds)
-SPACEBAR_CONFIG = {
-    'enabled': True,
-    'key': ' ',  # Spacebar
-    'delay_after_click': (2.0, 4.0),  # 2-4 seconds after portable click
-    'cycle_duration': (182.0, 190.0),  # 182-190 seconds total cycle time
-    'emoji': '⌨️'
-}
+# Bonfire Automation Steps Configuration
+STEPS = [
+    {
+        'name': 'Withdraw Eternal Magic Logs',
+        'emoji': '🪵',
+        'duration': (3.0, 5.0),
+        'region_key': 'WITHDRAW_ETERNAL_MAGIC_LOGS_REGION'
+    },
+    {
+        'name': 'Click on Bonfire',
+        'emoji': '🔥',
+        'duration': (45.0, 60.0),
+        'region_key': 'CLICK_ON_BONFIRE_REGION'
+    },
+    {
+        'name': 'Click on Bank Chest',
+        'emoji': '💰',
+        'duration': (3.0, 5.0),
+        'region_key': 'CLICK_ON_BANK_CHEST_REGION'
+    }
+]
 
 # ─── Calibration ──────────────────────────────────────────────────────────────
 def calibrate_region(name):
@@ -88,14 +96,16 @@ def calibrate_region(name):
     print(f"{name} region: ({x1}, {y1}, {x2}, {y2})")
     return (x1, y1, x2, y2)
 
-def calibrate_portable_region():
-    print("\n--- Portable Calibration Mode ---")
+def calibrate_all_regions():
+    print("\n--- Bonfire Automation Calibration Mode ---")
     regions = {}
-    regions[PORTABLE_CONFIG['region_key']] = calibrate_region(PORTABLE_CONFIG['name'])
+    
+    for step in STEPS:
+        regions[step['region_key']] = calibrate_region(step['name'])
     
     with open(REGION_FILE, 'w') as f:
         json.dump(regions, f)
-    print(f"Region saved to {REGION_FILE}!")
+    print(f"Regions saved to {REGION_FILE}!")
     return regions
 
 def load_regions():
@@ -104,17 +114,17 @@ def load_regions():
             return json.load(f)
     else:
         logger.warning("No region calibration found. Please calibrate (press 'c').")
-        return calibrate_portable_region()
+        return calibrate_all_regions()
 
 regions = load_regions()
 
-MIN_CLICKS_BEFORE_BREAK = 40
-BREAK_MIN_SEC     = 15
-BREAK_MAX_SEC     = 45
+MIN_CYCLES_BEFORE_BREAK = 8
+BREAK_MIN_SEC     = 12
+BREAK_MAX_SEC     = 25
 INITIAL_DELAY_SEC = 10
 
 PROGRESS_UPDATE_INTERVAL = 120
-SHOW_DETAILED_PROGRESS = True
+SHOW_DETAILED_PROGRESS = False
 FORCE_GARBAGE_COLLECTION = True
 
 ENABLE_CURVED_PATHS = True
@@ -129,31 +139,6 @@ OVERSHOOT_CHANCE = 0.15
 HESITATION_CHANCE = 0.25
 DISTRACTION_CHANCE = 0.08
 MICRO_CORRECTION_CHANCE = 0.4
-
-# ─── Windows API Keyboard Input ───────────────────────────────────────────────
-def send_key_press(key_char):
-    """Send a key press using Windows API - works globally regardless of focus"""
-    try:
-        if key_char == ' ':
-            # Special handling for spacebar
-            vk_code = 0x20  # VK_SPACE
-        else:
-            # Get virtual key code for the character
-            vk_code = ord(key_char.upper())
-        
-        # Key down
-        windll.user32.keybd_event(vk_code, 0, 0, 0)
-        time.sleep(0.05)  # Brief hold
-        # Key up
-        windll.user32.keybd_event(vk_code, 0, 2, 0)  # 2 = KEYEVENTF_KEYUP
-        
-        key_display = 'SPACE' if key_char == ' ' else key_char
-        logger.info(f"⌨️ Key '{key_display}' pressed successfully")
-        return True
-    except Exception as e:
-        key_display = 'SPACE' if key_char == ' ' else key_char
-        logger.error(f"❌ Failed to send key '{key_display}': {e}")
-        return False
 
 # ─── Native Windows Mouse Click with ctypes/SendInput ─────────────────────────
 PUL = ctypes.POINTER(ctypes.c_ulong)
@@ -529,40 +514,43 @@ def format_time(seconds):
 def print_stats():
     if session_stats['session_start']:
         elapsed = time.time() - session_stats['session_start']
-        total_clicks = session_stats['total_portable_clicks']
-        total_spacebar = session_stats['total_spacebar_presses']
+        total_clicks = sum([
+            session_stats['total_withdraw_eternal_magic_logs_clicks'],
+            session_stats['total_click_on_bonfire_clicks'],
+            session_stats['total_click_on_bank_chest_clicks']
+        ])
         clicks_per_min = (total_clicks / elapsed) * 60 if elapsed > 0 else 0
-        clicks_per_hour = (total_clicks / elapsed) * 3600 if elapsed > 0 else 0
-        spacebar_per_hour = (total_spacebar / elapsed) * 3600 if elapsed > 0 else 0
+        cycles_per_hour = (session_stats['total_cycles'] / elapsed) * 3600 if elapsed > 0 else 0
         
         logger.info("=" * 70)
-        logger.info("🎒 PORTABLE AUTOMATION SESSION STATISTICS")
+        logger.info("🔥 BONFIRE AUTOMATION SESSION STATISTICS")
         logger.info("=" * 70)
-        logger.info(f"🎒 Portable Clicks: {session_stats['total_portable_clicks']}")
-        logger.info(f"⌨️ Spacebar Presses: {session_stats['total_spacebar_presses']}")
+        logger.info(f"🪵 Withdraw Eternal Magic Logs: {session_stats['total_withdraw_eternal_magic_logs_clicks']}")
+        logger.info(f"🔥 Click on Bonfire: {session_stats['total_click_on_bonfire_clicks']}")
+        logger.info(f"💰 Click on Bank Chest: {session_stats['total_click_on_bank_chest_clicks']}")
+        logger.info(f"🔄 Total Cycles: {session_stats['total_cycles']}")
         logger.info(f"📍 Total Moves: {session_stats['total_moves']}")
         logger.info(f"☕ Total Breaks: {session_stats['total_breaks']}")
-        logger.info(f"🔄 Total Cycles: {session_stats['total_cycles']}")
         logger.info(f"⏱️  Session Time: {format_time(elapsed)}")
         logger.info(f"⚡ Clicks/Min: {clicks_per_min:.1f}")
-        logger.info(f"⚡ Clicks/Hour: {clicks_per_hour:.1f}")
-        logger.info(f"⌨️ Spacebar/Hour: {spacebar_per_hour:.1f}")
+        logger.info(f"🔄 Cycles/Hour: {cycles_per_hour:.1f}")
         logger.info("=" * 70)
 
-def click_portable():
+def click_step(step_index):
     global session_stats
     
-    region_key = PORTABLE_CONFIG['region_key']
+    step = STEPS[step_index]
+    region_key = step['region_key']
     
     if region_key not in regions:
-        logger.error(f"❌ Region not found for {PORTABLE_CONFIG['name']}! Please calibrate.")
+        logger.error(f"❌ Region not found for {step['name']}! Please calibrate.")
         return False
     
     region = tuple(regions[region_key])
     
-    logger.info(f"{PORTABLE_CONFIG['emoji']} Clicking {PORTABLE_CONFIG['name']}...")
+    logger.info(f"{step['emoji']} Clicking {step['name']}...")
     tx, ty = random_target_within(region)
-    logger.info(f"🎯 Moving to {PORTABLE_CONFIG['name']}: ({tx}, {ty})")
+    logger.info(f"🎯 Moving to {step['name']}: ({tx}, {ty})")
     human_move(tx, ty)
     
     if not running:
@@ -577,35 +565,11 @@ def click_portable():
     send_native_click(*get_current_mouse_position())
     
     # Update stats
-    session_stats['total_portable_clicks'] += 1
+    stats_key = f"total_{step['name'].lower().replace(' ', '_')}_clicks"
+    session_stats[stats_key] += 1
     
-    logger.info(f"✅ {PORTABLE_CONFIG['name']} click #{session_stats['total_portable_clicks']} completed at {get_current_mouse_position()}")
+    logger.info(f"✅ {step['name']} click #{session_stats[stats_key]} completed at {get_current_mouse_position()}")
     return True
-
-def press_spacebar_after_delay():
-    """Press spacebar after the configured delay"""
-    if not SPACEBAR_CONFIG['enabled']:
-        return False
-    
-    # Wait the specified delay after portable click
-    delay = random.uniform(SPACEBAR_CONFIG['delay_after_click'][0], SPACEBAR_CONFIG['delay_after_click'][1])
-    logger.info(f"⏰ Waiting {delay:.1f}s before pressing spacebar...")
-    
-    smart_wait(delay, "spacebar press")
-    
-    if not running:
-        return False
-    
-    # Press spacebar
-    logger.info(f"{SPACEBAR_CONFIG['emoji']} Pressing spacebar...")
-    
-    if send_key_press(SPACEBAR_CONFIG['key']):
-        session_stats['total_spacebar_presses'] += 1
-        logger.info(f"✅ Spacebar press #{session_stats['total_spacebar_presses']} completed")
-        return True
-    else:
-        logger.warning("⚠️ Spacebar press failed")
-        return False
 
 def smart_wait(wait_time, action_description="next action"):
     if wait_time <= 30:
@@ -641,15 +605,16 @@ def smart_wait(wait_time, action_description="next action"):
         else:
             time.sleep(2)
 
-def portable_automation_loop():
-    global click_count, running, session_stats
+def bonfire_automation_loop():
+    global current_step, cycle_count, running, session_stats
 
-    logger.info("🎒 Starting Portable Automation. Press '`' to stop, '~' to exit.")
+    logger.info("🔥 Starting Bonfire Automation. Press '`' to stop, '~' to exit.")
     
-    # Print region info
-    region_key = PORTABLE_CONFIG['region_key']
-    if region_key in regions:
-        logger.info(f"{PORTABLE_CONFIG['emoji']} {PORTABLE_CONFIG['name']} Region: {regions[region_key]}")
+    # Print all regions
+    for step in STEPS:
+        region_key = step['region_key']
+        if region_key in regions:
+            logger.info(f"{step['emoji']} {step['name']} Region: {regions[region_key]}")
     
     logger.info(f"⏳ Initial delay: {INITIAL_DELAY_SEC} seconds to switch screens...")
     for i in range(INITIAL_DELAY_SEC, 0, -1):
@@ -659,57 +624,56 @@ def portable_automation_loop():
         logger.info(f"⏳ Starting in {i} seconds...")
         time.sleep(1)
     
-    logger.info("🎒 Starting Portable Automation NOW!")
+    logger.info("🔥 Starting Bonfire Automation NOW!")
     
-    click_count = 0
+    current_step = 0
     
     while running:
         try:
-            cycle_start_time = time.time()
+            # Click current step
+            step = STEPS[current_step]
             
-            # Step 1: Click the portable
-            if not click_portable():
+            if not click_step(current_step):
                 break
             
-            # Step 2: Press spacebar after 3-5 seconds
-            if not press_spacebar_after_delay():
-                break
+            # Wait for step completion
+            min_duration, max_duration = step['duration']
+            wait_time = random.uniform(min_duration, max_duration)
             
-            click_count += 1
-            session_stats['total_cycles'] += 1
+            next_step_name = STEPS[(current_step + 1) % len(STEPS)]['name']
+            smart_wait(wait_time, f"completing {step['name']} -> {next_step_name}")
             
-            # Calculate remaining wait time for the full cycle (182-190 seconds total)
-            cycle_duration = random.uniform(SPACEBAR_CONFIG['cycle_duration'][0], SPACEBAR_CONFIG['cycle_duration'][1])
-            elapsed_cycle_time = time.time() - cycle_start_time
-            remaining_wait = max(0, cycle_duration - elapsed_cycle_time)
+            # Move to next step
+            current_step = (current_step + 1) % len(STEPS)
             
-            if remaining_wait > 0:
-                logger.info(f"⏰ Cycle {session_stats['total_cycles']} timing: {cycle_duration:.1f}s total, {elapsed_cycle_time:.1f}s elapsed")
-                smart_wait(remaining_wait, f"next portable cycle (#{session_stats['total_cycles'] + 1})")
-            
-            # Print stats every 10 cycles
-            if session_stats['total_cycles'] % 10 == 0:
-                logger.info(f"🎒 ======================================== {session_stats['total_cycles']} Portable Cycles Completed!")
-                print_stats()
-                if FORCE_GARBAGE_COLLECTION:
-                    gc.collect()
-            
-            # Take break every X cycles
-            if session_stats['total_cycles'] % MIN_CLICKS_BEFORE_BREAK == 0:
-                break_duration = random.uniform(BREAK_MIN_SEC, BREAK_MAX_SEC)
-                session_stats['total_breaks'] += 1
-                logger.info(f"☕ Taking break #{session_stats['total_breaks']} for {break_duration:.1f}s after {session_stats['total_cycles']} cycles...")
+            # Check if we completed a full cycle
+            if current_step == 0:
+                cycle_count += 1
+                session_stats['total_cycles'] += 1
+                logger.info(f"🔄 ======================================== Cycle #{cycle_count} completed!")
                 
-                smart_wait(break_duration, "break completion")
+                # Print stats every 5 cycles
+                if cycle_count % 5 == 0:
+                    print_stats()
+                    if FORCE_GARBAGE_COLLECTION:
+                        gc.collect()
                 
-                if running:
-                    logger.info("🔄 Break finished, resuming portable automation...")
+                # Take break every few cycles
+                if cycle_count % MIN_CYCLES_BEFORE_BREAK == 0:
+                    break_duration = random.uniform(BREAK_MIN_SEC, BREAK_MAX_SEC)
+                    session_stats['total_breaks'] += 1
+                    logger.info(f"☕ Taking break #{session_stats['total_breaks']} for {break_duration:.1f}s after {cycle_count} cycles...")
                     
+                    smart_wait(break_duration, "break completion")
+                    
+                    if running:
+                        logger.info("🔄 Break finished, resuming Bonfire Automation...")
+                        
         except Exception as e:
-            logger.error(f"❌ Error in portable automation loop: {e}")
+            logger.error(f"❌ Error in Bonfire Automation loop: {e}")
             break
     
-    logger.info("⏸️  Portable automation loop stopped.")
+    logger.info("⏸️  Bonfire Automation loop stopped.")
 
 # ─── Console Keyboard Monitoring ───────────────────────────────────────────────
 
@@ -745,24 +709,16 @@ def handle_start_stop():
     if not running:
         running = True
         session_stats['session_start'] = time.time()
-        logger.info("▶️  PORTABLE AUTOMATION STARTED")
+        logger.info("▶️  AUTOMATION STARTED")
         logger.info(f"🎮 Controls: Press '`' to stop, '~' to exit")
-        
-        # Start the portable thread
-        click_thread = threading.Thread(target=portable_automation_loop, daemon=True)
+        click_thread = threading.Thread(target=bonfire_automation_loop, daemon=True)
         click_thread.start()
-        
-        logger.info(f"🎒 Portable automation started - clicking portable then pressing spacebar after 3-5s, cycling every 182-190s")
-        
     else:
         running = False
-        logger.info("⏸️  PORTABLE AUTOMATION PAUSED")
-        
-        # Wait for thread to finish
+        logger.info("⏸️  AUTOMATION PAUSED")
         if click_thread and click_thread.is_alive():
-            logger.info("⏳ Waiting for portable automation to complete...")
+            logger.info("⏳ Waiting for current action to complete...")
             click_thread.join(timeout=5)
-            
         print_stats()
         logger.info(f"🎮 Press '`' to resume, '~' to exit")
 
@@ -770,49 +726,37 @@ def handle_exit():
     global running, click_thread
     logger.info("🛑 EXIT REQUESTED")
     running = False
-    
-    # Wait for thread
     if click_thread and click_thread.is_alive():
-        logger.info("⏳ Waiting for portable automation to stop...")
+        logger.info("⏳ Waiting for automation to stop...")
         click_thread.join(timeout=5)
-        
     print_stats()
     logger.info("👋 Goodbye!")
     sys.exit(0)
 
 def handle_calibration():
     global regions
-    logger.info("🎯 CALIBRATION MODE - Recalibrating portable region")
-    regions = calibrate_portable_region()
-    logger.info("✅ Calibration complete! New region saved.")
+    logger.info("🎯 CALIBRATION MODE - Recalibrating all regions")
+    regions = calibrate_all_regions()
+    logger.info("✅ Calibration complete! New regions saved.")
 
 def main():
-    logger.info("🎒 Enhanced Anti-Bot Portable Automation with Spacebar Timing")
-    logger.info("=" * 80)
+    logger.info("🔥 Enhanced Anti-Bot Bonfire Automation")
+    logger.info("=" * 70)
     logger.info(f"⌨️  START/STOP: Press '`' (backtick)")
     logger.info(f"⌨️  EXIT: Press '~' (tilde)")
-    logger.info(f"🎯 CALIBRATION: Press 'c' to recalibrate portable region")
-    logger.info("─" * 80)
-    logger.info("🖥️  PORTABLE CONFIGURATION:")
+    logger.info(f"🎯 CALIBRATION: Press 'c' to recalibrate all regions")
+    logger.info("─" * 70)
+    logger.info("🔥 BONFIRE AUTOMATION CONFIGURATION:")
     
-    region_key = PORTABLE_CONFIG['region_key']
-    if region_key in regions:
-        logger.info(f"{PORTABLE_CONFIG['emoji']} {PORTABLE_CONFIG['name']}: {regions[region_key]}")
-    else:
-        logger.warning(f"❌ {PORTABLE_CONFIG['name']}: NOT CALIBRATED")
+    for i, step in enumerate(STEPS, 1):
+        region_key = step['region_key']
+        if region_key in regions:
+            duration = step['duration']
+            logger.info(f"{step['emoji']} {i}. {step['name']}: {regions[region_key]} ({duration[0]:.1f}-{duration[1]:.1f}s)")
+        else:
+            logger.warning(f"❌ {i}. {step['name']}: NOT CALIBRATED")
     
-    logger.info("─" * 80)
-    logger.info("⌨️  SPACEBAR TIMING CONFIGURATION:")
-    if SPACEBAR_CONFIG['enabled']:
-        delay_min, delay_max = SPACEBAR_CONFIG['delay_after_click']
-        cycle_min, cycle_max = SPACEBAR_CONFIG['cycle_duration']
-        logger.info(f"{SPACEBAR_CONFIG['emoji']} Spacebar Press: {delay_min:.0f}-{delay_max:.0f}s after portable click")
-        logger.info(f"🔄 Full Cycle Duration: {cycle_min:.0f}-{cycle_max:.0f}s total")
-        logger.info(f"✅ Spacebar automation: ENABLED")
-    else:
-        logger.info(f"❌ Spacebar automation: DISABLED")
-    
-    logger.info("─" * 80)
+    logger.info("─" * 70)
     logger.info("🤖 ANTI-BOT DETECTION FEATURES:")
     logger.info(f"🏹 Curved Paths: {'✅ Enabled' if ENABLE_CURVED_PATHS else '❌ Disabled'}")
     logger.info(f"🎯 Overshoot Correction: {'✅ Enabled' if ENABLE_OVERSHOOT else '❌ Disabled'} ({OVERSHOOT_CHANCE*100:.0f}% chance)")
@@ -821,41 +765,45 @@ def main():
     logger.info(f"🌊 Momentum Simulation: {'✅ Enabled' if ENABLE_MOMENTUM else '❌ Disabled'}")
     logger.info(f"👀 Distraction Moves: {'✅ Enabled' if ENABLE_DISTRACTION_MOVES else '❌ Disabled'} ({DISTRACTION_CHANCE*100:.0f}% chance)")
     logger.info(f"🎨 Curve Intensity: {CURVE_INTENSITY*100:.0f}%")
-    logger.info("─" * 80)
-    logger.info(f"☕ Break Every: {MIN_CLICKS_BEFORE_BREAK} cycles")
+    logger.info("─" * 70)
+    logger.info(f"☕ Break Every: {MIN_CYCLES_BEFORE_BREAK} cycles")
     logger.info(f"⏳ Initial Delay: {INITIAL_DELAY_SEC} seconds")
     logger.info(f"📊 Progress Updates: Every {PROGRESS_UPDATE_INTERVAL}s for long waits")
+    logger.info("=" * 70)
+    logger.info("🔥 BONFIRE AUTOMATION SEQUENCE:")
     
-    delay_min, delay_max = SPACEBAR_CONFIG['delay_after_click']
-    cycle_min, cycle_max = SPACEBAR_CONFIG['cycle_duration']
-    logger.info(f"⏰ Spacebar Delay: {delay_min:.0f}-{delay_max:.0f} seconds after portable click")
-    logger.info(f"🔄 Full Cycle Time: {cycle_min:.0f}-{cycle_max:.0f} seconds")
-    logger.info("=" * 80)
-    logger.info("🎒 PORTABLE AUTOMATION SEQUENCE:")
-    logger.info(f"{PORTABLE_CONFIG['emoji']} 1. Click {PORTABLE_CONFIG['name']}")
-    logger.info(f"   ⬇️")
-    logger.info(f"{SPACEBAR_CONFIG['emoji']} 2. Wait {delay_min:.0f}-{delay_max:.0f}s, then press SPACEBAR")
-    logger.info(f"   ⬇️")
-    logger.info(f"⏰ 3. Wait for full cycle completion ({cycle_min:.0f}-{cycle_max:.0f}s total)")
-    logger.info("   ⬇️")
-    logger.info("   🔄 Loop back to step 1")
-    logger.info("=" * 80)
+    for i, step in enumerate(STEPS, 1):
+        duration = step['duration']
+        if step['name'] == 'Click on Bonfire':
+            min_time = f"{int(duration[0]//60)}m {int(duration[0]%60)}s"
+            max_time = f"{int(duration[1]//60)}m {int(duration[1]%60)}s"
+            logger.info(f"{step['emoji']} {i}. {step['name']} ({min_time}-{max_time})")
+        else:
+            logger.info(f"{step['emoji']} {i}. {step['name']} ({duration[0]:.1f}-{duration[1]:.1f}s)")
+        if i < len(STEPS):
+            logger.info("   ⬇️")
     
-    # Check if region is calibrated
-    if PORTABLE_CONFIG['region_key'] not in regions:
-        logger.warning(f"❌ Missing calibration for: {PORTABLE_CONFIG['name']}")
-        logger.warning("⚠️  Please press 'c' to calibrate the portable region before starting!")
+    logger.info("   🔄 Loop back to start")
+    logger.info("=" * 70)
+    
+    # Check if all regions are calibrated
+    missing_regions = []
+    for step in STEPS:
+        if step['region_key'] not in regions:
+            missing_regions.append(step['name'])
+    
+    if missing_regions:
+        logger.warning(f"❌ Missing calibration for: {', '.join(missing_regions)}")
+        logger.warning("⚠️  Please press 'c' to calibrate all regions before starting!")
     else:
-        logger.info("✅ Portable region calibrated and ready!")
+        logger.info("✅ All regions calibrated and ready!")
     
     logger.info("💡 Ready! Press '`' (backtick) to start automation...")
     logger.info("💡 Enhanced with human-like movement patterns to avoid detection!")
-    logger.info("💡 Now includes precise spacebar timing for portable automation!")
     logger.info("💡 Tip: Adjust anti-bot settings at top of script to customize behavior")
-    logger.info("💡 Tip: Press 'c' to recalibrate the portable region")
+    logger.info("💡 Tip: Press 'c' to recalibrate all step regions")
     logger.info("💡 Tip: Using pure Windows API - no pynput detection!")
-    logger.info(f"💡 Spacebar will be pressed {delay_min:.0f}-{delay_max:.0f}s after each portable click")
-    logger.info(f"💡 Full cycles run for {cycle_min:.0f}-{cycle_max:.0f}s each (portable + spacebar + wait)")
+    logger.info("💡 Bonfire Automation: Withdraw Eternal Magic Logs → Click on Bonfire → Click on Bank Chest")
     
     try:
         keyboard_monitor()

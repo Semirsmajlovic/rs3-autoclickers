@@ -23,6 +23,8 @@ start_time = None
 last_keybind_time = None
 session_stats = {
     'total_colonised_varrock_guard_clicks': 0,
+    'guard1_clicks': 0,
+    'guard2_clicks': 0,
     'total_moves': 0,
     'total_breaks': 0,
     'total_cycles': 0,
@@ -59,13 +61,21 @@ CALIBRATION_KEY   = 'c'
 
 REGION_FILE = 'colonised-varrock-guard-regions.json'
 
-# Colonised Varrock Guard Configuration
-GUARD_CONFIG = {
-    'name': 'Click Colonised Varrock Guard',
-    'emoji': '⚔️',
-    'duration': (20.0, 40.0),  # 20-40 seconds
-    'region_key': 'COLONISED_VARROCK_GUARD_REGION'
-}
+# Dual Colonised Varrock Guard Configuration
+GUARD_CONFIGS = [
+    {
+        'name': 'Colonised Varrock Guard #1',
+        'emoji': '⚔️',
+        'duration': (20.0, 40.0),  # 20-40 seconds
+        'region_key': 'COLONISED_VARROCK_GUARD_1_REGION'
+    },
+    {
+        'name': 'Colonised Varrock Guard #2',
+        'emoji': '🛡️',
+        'duration': (20.0, 40.0),  # 20-40 seconds
+        'region_key': 'COLONISED_VARROCK_GUARD_2_REGION'
+    }
+]
 
 # Keybind Configuration
 KEYBIND_CONFIG = {
@@ -91,14 +101,17 @@ def calibrate_region(name):
     print(f"{name} region: ({x1}, {y1}, {x2}, {y2})")
     return (x1, y1, x2, y2)
 
-def calibrate_guard_region():
-    print("\n--- Colonised Varrock Guard Calibration Mode ---")
+def calibrate_guard_regions():
+    print("\n--- Dual Colonised Varrock Guard Calibration Mode ---")
     regions = {}
-    regions[GUARD_CONFIG['region_key']] = calibrate_region(GUARD_CONFIG['name'])
+    
+    for i, guard_config in enumerate(GUARD_CONFIGS, 1):
+        print(f"\nCalibrating {guard_config['name']}:")
+        regions[guard_config['region_key']] = calibrate_region(guard_config['name'])
     
     with open(REGION_FILE, 'w') as f:
         json.dump(regions, f)
-    print(f"Region saved to {REGION_FILE}!")
+    print(f"\nAll regions saved to {REGION_FILE}!")
     return regions
 
 def load_regions():
@@ -107,7 +120,7 @@ def load_regions():
             return json.load(f)
     else:
         logger.warning("No region calibration found. Please calibrate (press 'c').")
-        return calibrate_guard_region()
+        return calibrate_guard_regions()
 
 regions = load_regions()
 
@@ -585,9 +598,11 @@ def print_stats():
         keybind_per_hour = (session_stats['total_keybind_presses'] / elapsed) * 3600 if elapsed > 0 else 0
         
         logger.info("=" * 70)
-        logger.info("⚔️ COLONISED VARROCK GUARD SESSION STATISTICS")
+        logger.info("⚔️ DUAL COLONISED VARROCK GUARD SESSION STATISTICS")
         logger.info("=" * 70)
-        logger.info(f"⚔️ Colonised Varrock Guard Clicks: {session_stats['total_colonised_varrock_guard_clicks']}")
+        logger.info(f"⚔️ Total Guard Clicks: {session_stats['total_colonised_varrock_guard_clicks']}")
+        logger.info(f"  ├─ Guard #1 Clicks: {session_stats['guard1_clicks']}")
+        logger.info(f"  └─ Guard #2 Clicks: {session_stats['guard2_clicks']}")
         logger.info(f"⌨️ Keybind Presses ('{KEYBIND_CONFIG['key']}'): {session_stats['total_keybind_presses']}")
         logger.info(f"📍 Total Moves: {session_stats['total_moves']}")
         logger.info(f"☕ Total Breaks: {session_stats['total_breaks']}")
@@ -595,22 +610,35 @@ def print_stats():
         logger.info(f"⚡ Clicks/Min: {clicks_per_min:.1f}")
         logger.info(f"⚡ Clicks/Hour: {clicks_per_hour:.1f}")
         logger.info(f"⌨️ Keybinds/Hour: {keybind_per_hour:.1f}")
+        
+        # Guard distribution percentage
+        if total_clicks > 0:
+            guard1_percent = (session_stats['guard1_clicks'] / total_clicks) * 100
+            guard2_percent = (session_stats['guard2_clicks'] / total_clicks) * 100
+            logger.info(f"📊 Guard Distribution: G1={guard1_percent:.1f}% | G2={guard2_percent:.1f}%")
+        
         logger.info("=" * 70)
+
+def select_random_guard():
+    """Randomly select one of the two guards"""
+    return random.choice(GUARD_CONFIGS)
 
 def click_guard():
     global session_stats
     
-    region_key = GUARD_CONFIG['region_key']
+    # Randomly select which guard to click
+    selected_guard = select_random_guard()
+    region_key = selected_guard['region_key']
     
     if region_key not in regions:
-        logger.error(f"❌ Region not found for {GUARD_CONFIG['name']}! Please calibrate.")
+        logger.error(f"❌ Region not found for {selected_guard['name']}! Please calibrate.")
         return False
     
     region = tuple(regions[region_key])
     
-    logger.info(f"{GUARD_CONFIG['emoji']} Clicking {GUARD_CONFIG['name']}...")
+    logger.info(f"{selected_guard['emoji']} Clicking {selected_guard['name']}...")
     tx, ty = random_target_within(region)
-    logger.info(f"🎯 Moving to {GUARD_CONFIG['name']}: ({tx}, {ty})")
+    logger.info(f"🎯 Moving to {selected_guard['name']}: ({tx}, {ty})")
     human_move(tx, ty)
     
     if not running:
@@ -624,11 +652,18 @@ def click_guard():
     
     send_native_click(*get_current_mouse_position())
     
-    # Update stats
+    # Update stats - track which guard was clicked
     session_stats['total_colonised_varrock_guard_clicks'] += 1
+    if region_key == GUARD_CONFIGS[0]['region_key']:
+        session_stats['guard1_clicks'] += 1
+    else:
+        session_stats['guard2_clicks'] += 1
     
-    logger.info(f"✅ {GUARD_CONFIG['name']} click #{session_stats['total_colonised_varrock_guard_clicks']} completed at {get_current_mouse_position()}")
-    return True
+    logger.info(f"✅ {selected_guard['name']} click completed at {get_current_mouse_position()}")
+    logger.info(f"📊 Total: {session_stats['total_colonised_varrock_guard_clicks']} | G1: {session_stats['guard1_clicks']} | G2: {session_stats['guard2_clicks']}")
+    
+    # Use the selected guard's duration for wait time
+    return selected_guard
 
 def smart_wait(wait_time, action_description="next action"):
     if wait_time <= 30:
@@ -667,12 +702,15 @@ def smart_wait(wait_time, action_description="next action"):
 def guard_clicking_loop():
     global click_count, running, session_stats
 
-    logger.info("⚔️ Starting Colonised Varrock Guard automation. Press '`' to stop, '~' to exit.")
+    logger.info("⚔️ Starting Dual Colonised Varrock Guard automation. Press '`' to stop, '~' to exit.")
     
-    # Print region info
-    region_key = GUARD_CONFIG['region_key']
-    if region_key in regions:
-        logger.info(f"{GUARD_CONFIG['emoji']} {GUARD_CONFIG['name']} Region: {regions[region_key]}")
+    # Print region info for both guards
+    for i, guard_config in enumerate(GUARD_CONFIGS):
+        region_key = guard_config['region_key']
+        if region_key in regions:
+            logger.info(f"{guard_config['emoji']} {guard_config['name']} Region: {regions[region_key]}")
+        else:
+            logger.warning(f"❌ {guard_config['name']}: NOT CALIBRATED")
     
     logger.info(f"⏳ Initial delay: {INITIAL_DELAY_SEC} seconds to switch screens...")
     for i in range(INITIAL_DELAY_SEC, 0, -1):
@@ -682,23 +720,25 @@ def guard_clicking_loop():
         logger.info(f"⏳ Starting in {i} seconds...")
         time.sleep(1)
     
-    logger.info("⚔️ Starting Colonised Varrock Guard automation NOW!")
+    logger.info("⚔️ Starting Dual Guard automation NOW!")
     
     click_count = 0
     
     while running:
         try:
-            # Click the guard
-            if not click_guard():
+            # Click a randomly selected guard
+            selected_guard = click_guard()
+            if not selected_guard:
                 break
             
             click_count += 1
             
-            # Wait for respawn/cooldown
-            min_duration, max_duration = GUARD_CONFIG['duration']
+            # Wait for respawn/cooldown using the selected guard's duration
+            min_duration, max_duration = selected_guard['duration']
             wait_time = random.uniform(min_duration, max_duration)
             
-            smart_wait(wait_time, f"next guard click (#{click_count + 1})")
+            next_guard_preview = select_random_guard()  # Preview next guard for logging
+            smart_wait(wait_time, f"next guard click (#{click_count + 1}) - Next: {next_guard_preview['name']}")
             
             # Print stats every 10 clicks
             if click_count % 10 == 0:
@@ -716,7 +756,7 @@ def guard_clicking_loop():
                 smart_wait(break_duration, "break completion")
                 
                 if running:
-                    logger.info("🔄 Break finished, resuming guard clicking automation...")
+                    logger.info("🔄 Break finished, resuming dual guard clicking automation...")
                     
         except Exception as e:
             logger.error(f"❌ Error in guard clicking loop: {e}")
@@ -758,7 +798,7 @@ def handle_start_stop():
     if not running:
         running = True
         session_stats['session_start'] = time.time()
-        logger.info("▶️  AUTOMATION STARTED")
+        logger.info("▶️  DUAL GUARD AUTOMATION STARTED")
         logger.info(f"🎮 Controls: Press '`' to stop, '~' to exit")
         
         # Start both threads
@@ -772,7 +812,7 @@ def handle_start_stop():
         
     else:
         running = False
-        logger.info("⏸️  AUTOMATION PAUSED")
+        logger.info("⏸️  DUAL GUARD AUTOMATION PAUSED")
         
         # Wait for threads to finish
         if click_thread and click_thread.is_alive():
@@ -806,25 +846,26 @@ def handle_exit():
 
 def handle_calibration():
     global regions
-    logger.info("🎯 CALIBRATION MODE - Recalibrating guard region")
-    regions = calibrate_guard_region()
-    logger.info("✅ Calibration complete! New region saved.")
+    logger.info("🎯 CALIBRATION MODE - Recalibrating both guard regions")
+    regions = calibrate_guard_regions()
+    logger.info("✅ Calibration complete! New regions saved.")
 
 def main():
-    logger.info("⚔️ Enhanced Anti-Bot Colonised Varrock Guard Automation with Keybinds")
+    logger.info("⚔️ Enhanced Anti-Bot Dual Colonised Varrock Guard Automation with Keybinds")
     logger.info("=" * 80)
     logger.info(f"⌨️  START/STOP: Press '`' (backtick)")
     logger.info(f"⌨️  EXIT: Press '~' (tilde)")
-    logger.info(f"🎯 CALIBRATION: Press 'c' to recalibrate guard region")
+    logger.info(f"🎯 CALIBRATION: Press 'c' to recalibrate both guard regions")
     logger.info("─" * 80)
-    logger.info("🖥️  COLONISED VARROCK GUARD CONFIGURATION:")
+    logger.info("🖥️  DUAL COLONISED VARROCK GUARD CONFIGURATION:")
     
-    region_key = GUARD_CONFIG['region_key']
-    if region_key in regions:
-        duration = GUARD_CONFIG['duration']
-        logger.info(f"{GUARD_CONFIG['emoji']} {GUARD_CONFIG['name']}: {regions[region_key]} ({duration[0]:.0f}-{duration[1]:.0f}s)")
-    else:
-        logger.warning(f"❌ {GUARD_CONFIG['name']}: NOT CALIBRATED")
+    for i, guard_config in enumerate(GUARD_CONFIGS, 1):
+        region_key = guard_config['region_key']
+        if region_key in regions:
+            duration = guard_config['duration']
+            logger.info(f"{guard_config['emoji']} {guard_config['name']}: {regions[region_key]} ({duration[0]:.0f}-{duration[1]:.0f}s)")
+        else:
+            logger.warning(f"❌ {guard_config['name']}: NOT CALIBRATED")
     
     logger.info("─" * 80)
     logger.info("⌨️  KEYBIND CONFIGURATION:")
@@ -847,32 +888,39 @@ def main():
     logger.info(f"☕ Break Every: {MIN_CLICKS_BEFORE_BREAK} clicks")
     logger.info(f"⏳ Initial Delay: {INITIAL_DELAY_SEC} seconds")
     logger.info(f"📊 Progress Updates: Every {PROGRESS_UPDATE_INTERVAL}s for long waits")
-    logger.info(f"⏰ Guard Respawn Time: {GUARD_CONFIG['duration'][0]:.0f}-{GUARD_CONFIG['duration'][1]:.0f} seconds")
+    logger.info(f"⏰ Guard Respawn Time: {GUARD_CONFIGS[0]['duration'][0]:.0f}-{GUARD_CONFIGS[0]['duration'][1]:.0f} seconds (both guards)")
     logger.info("=" * 80)
-    logger.info("⚔️ AUTOMATION SEQUENCE:")
-    logger.info(f"{GUARD_CONFIG['emoji']} 1. {GUARD_CONFIG['name']} ({GUARD_CONFIG['duration'][0]:.0f}-{GUARD_CONFIG['duration'][1]:.0f}s)")
+    logger.info("⚔️ DUAL GUARD AUTOMATION SEQUENCE:")
+    logger.info(f"🎲 1. Randomly select between Guard #1 {GUARD_CONFIGS[0]['emoji']} and Guard #2 {GUARD_CONFIGS[1]['emoji']}")
+    logger.info(f"⚔️ 2. Click selected guard ({GUARD_CONFIGS[0]['duration'][0]:.0f}-{GUARD_CONFIGS[0]['duration'][1]:.0f}s)")
     if KEYBIND_CONFIG['enabled']:
-        logger.info(f"{KEYBIND_CONFIG['emoji']} 2. Periodic '{KEYBIND_CONFIG['key']}' key press every {KEYBIND_CONFIG['interval_min']/60:.1f}-{KEYBIND_CONFIG['interval_max']/60:.1f} minutes (background)")
+        logger.info(f"{KEYBIND_CONFIG['emoji']} 3. Periodic '{KEYBIND_CONFIG['key']}' key press every {KEYBIND_CONFIG['interval_min']/60:.1f}-{KEYBIND_CONFIG['interval_max']/60:.1f} minutes (background)")
     logger.info("   ⬇️")
     logger.info("   ⏰ Wait for respawn")
     logger.info("   ⬇️")
-    logger.info("   🔄 Loop back to step 1")
+    logger.info("   🔄 Loop back to step 1 (new random selection)")
     logger.info("=" * 80)
     
-    # Check if region is calibrated
-    if GUARD_CONFIG['region_key'] not in regions:
-        logger.warning(f"❌ Missing calibration for: {GUARD_CONFIG['name']}")
-        logger.warning("⚠️  Please press 'c' to calibrate the guard region before starting!")
-    else:
-        logger.info("✅ Guard region calibrated and ready!")
+    # Check if regions are calibrated
+    missing_regions = []
+    for guard_config in GUARD_CONFIGS:
+        if guard_config['region_key'] not in regions:
+            missing_regions.append(guard_config['name'])
     
-    logger.info("💡 Ready! Press '`' (backtick) to start automation...")
+    if missing_regions:
+        logger.warning(f"❌ Missing calibration for: {', '.join(missing_regions)}")
+        logger.warning("⚠️  Please press 'c' to calibrate both guard regions before starting!")
+    else:
+        logger.info("✅ Both guard regions calibrated and ready!")
+    
+    logger.info("💡 Ready! Press '`' (backtick) to start dual guard automation...")
     logger.info("💡 Enhanced with human-like movement patterns to avoid detection!")
-    logger.info("💡 Now includes periodic keybind automation for enhanced realism!")
+    logger.info("💡 Now includes random rotation between two guards for enhanced realism!")
+    logger.info("💡 Periodic keybind automation runs in background!")
     logger.info("💡 Tip: Adjust anti-bot settings at top of script to customize behavior")
-    logger.info("💡 Tip: Press 'c' to recalibrate the guard region")
+    logger.info("💡 Tip: Press 'c' to recalibrate both guard regions")
     logger.info("💡 Tip: Using pure Windows API - no pynput detection!")
-    logger.info(f"💡 Keybind '{KEYBIND_CONFIG['key']}' will be pressed every {KEYBIND_CONFIG['interval_min']/60:.1f}-{KEYBIND_CONFIG['interval_max']/60:.1f} minutes automatically")
+    logger.info(f"💡 Statistics track individual guard clicks for balanced distribution")
     
     try:
         keyboard_monitor()

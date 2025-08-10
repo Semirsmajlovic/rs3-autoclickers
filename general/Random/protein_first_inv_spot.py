@@ -70,7 +70,7 @@ SPACEBAR_CONFIG = {
     'key': ' ',  # Spacebar
     'delay_after_click': (2.0, 4.0),  # 2-4 seconds after protein click
     #'cycle_duration': (182.0, 190.0),  # 182-190 seconds total cycle time
-    'cycle_duration': (30.0, 35.0),
+    'cycle_duration': (25.0, 32.0),
     'emoji': '⌨️'
 }
 

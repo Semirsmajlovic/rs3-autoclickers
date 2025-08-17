@@ -65,7 +65,7 @@ STEPS = [
     {
         'name': 'Click on Bank Chest',
         'emoji': '💰',
-        'duration': (2.0, 4.0),
+        'duration': (1.5, 2.75),
         'action_type': 'click',
         'region_key': 'CLICK_ON_BANK_CHEST_REGION'
     },

@@ -86,7 +86,7 @@ STEPS = [
     {
         'name': 'Process Gems (Space)',
         'emoji': '💎',
-        'duration': (13.0, 15.5),
+        'duration': (15.5, 17),
         'action_type': 'keybind',
         'keybind': 'space'
     }

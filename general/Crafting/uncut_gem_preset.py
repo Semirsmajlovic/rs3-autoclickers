@@ -72,14 +72,14 @@ STEPS = [
     {
         'name': 'Preset (Ctrl+3)',
         'emoji': '⚙️',
-        'duration': (1.5, 3.0),
+        'duration': (1, 2.25),
         'action_type': 'keybind',
         'keybind': 'ctrl+3'
     },
     {
         'name': 'Select Tool (1)',
         'emoji': '🔧',
-        'duration': (1.5, 3.0),
+        'duration': (1, 2.25),
         'action_type': 'keybind',
         'keybind': '1'
     },

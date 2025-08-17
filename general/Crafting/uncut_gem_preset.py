@@ -131,7 +131,7 @@ def load_regions():
 
 regions = load_regions()
 
-MIN_CYCLES_BEFORE_BREAK = 8
+MIN_CYCLES_BEFORE_BREAK = 20
 BREAK_MIN_SEC     = 12
 BREAK_MAX_SEC     = 25
 INITIAL_DELAY_SEC = 10

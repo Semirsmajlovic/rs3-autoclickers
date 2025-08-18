@@ -76,7 +76,7 @@ RUNECRAFTING_STEPS = [
     {
         'name': 'Click Bank Chest',
         'emoji': '🏦',
-        'duration': (2.5, 4.0),
+        'duration': (4.0, 6.0),
         'region_key': 'BANK_CHEST_REGION'
     },
     {
@@ -96,7 +96,7 @@ RUNECRAFTING_STEPS = [
     {
         'name': 'Trigger 2 Keybind',
         'emoji': '2️⃣',
-        'duration': (1.0, 2.25),
+        'duration': (4.0, 6.0),
         'region_key': None,
         'keybinds': ['2']
     },

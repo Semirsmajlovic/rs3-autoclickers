@@ -103,7 +103,7 @@ RUNECRAFTING_STEPS = [
     {
         'name': 'Click Mini Map',
         'emoji': '🗺️',
-        'duration': (4.0, 7.0),
+        'duration': (5.0, 7.0),
         'region_key': 'MINIMAP_REGION'
     },
     {

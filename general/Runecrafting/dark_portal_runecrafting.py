@@ -130,6 +130,12 @@ RUNECRAFTING_STEPS = [
         'duration': (2.0, 3.25),
         'region_key': None,
         'keybinds': ['-']
+    },
+    {
+        'name': 'Click Reset Camera',
+        'emoji': '📷',
+        'duration': (3.0, 5.0),
+        'region_key': 'RESET_CAMERA_REGION'
     }
 ]
 

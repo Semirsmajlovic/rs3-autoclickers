@@ -28,13 +28,14 @@ click_thread = None
 start_time = None
 session_stats = {
     'total_bank_chest_clicks': 0,
-    'total_preset_clicks': 0,
-    'total_keybind_triggers': 0,
-    'total_minimap_portal_clicks': 0,
+    'total_ctrl_3_triggers': 0,
+    'total_0_keybind_triggers': 0,
+    'total_2_keybind_triggers': 0,
+    'total_minimap_clicks': 0,
     'total_dark_portal_clicks': 0,
-    'total_minimap_altar_clicks': 0,
-    'total_altar_clicks': 0,
-    'total_chest_walk_clicks': 0,
+    'total_reset_camera_clicks': 0,
+    'total_spirit_altar_clicks': 0,
+    'total_minus_keybind_triggers': 0,
     'total_moves': 0,
     'total_breaks': 0,
     'total_cycles': 0,
@@ -68,73 +69,72 @@ START_STOP_KEY    = '`'
 EXIT_KEY          = '~'
 CALIBRATION_KEY   = 'c'
 
-REGION_FILE = 'runespan-regions.json'
+REGION_FILE = 'runecrafting-regions.json'
 
-# Runespan Steps Configuration - Split into two sections
-BANKING_STEPS = [
+# New 9-Step Runecrafting Configuration
+RUNECRAFTING_STEPS = [
     {
         'name': 'Click Bank Chest',
         'emoji': '🏦',
-        'duration': (1.0, 2.25),
+        'duration': (2.5, 4.0),
         'region_key': 'BANK_CHEST_REGION'
     },
     {
-        'name': 'Click Preset',
-        'emoji': '📋',
-        'duration': (1.0, 2.25),
-        'region_key': 'PRESET_REGION'
-    },
-    {
-        'name': 'Trigger Keybinds (0, 2)',
+        'name': 'Trigger CTRL+3 Keybind',
         'emoji': '⌨️',
         'duration': (1.0, 2.25),
-        'region_key': None,  # No region needed for keybinds
-        'keybinds': ['0', '2']
+        'region_key': None,
+        'keybinds': ['CTRL+3']
     },
     {
-        'name': 'Click Minimap to Portal',
+        'name': 'Trigger 0 Keybind',
+        'emoji': '0️⃣',
+        'duration': (1.0, 2.25),
+        'region_key': None,
+        'keybinds': ['0']
+    },
+    {
+        'name': 'Trigger 2 Keybind',
+        'emoji': '2️⃣',
+        'duration': (1.0, 2.25),
+        'region_key': None,
+        'keybinds': ['2']
+    },
+    {
+        'name': 'Click Mini Map',
         'emoji': '🗺️',
-        'duration': (2.0, 4.0),
-        'region_key': 'MINIMAP_PORTAL_REGION'
+        'duration': (4.0, 7.0),
+        'region_key': 'MINIMAP_REGION'
     },
     {
         'name': 'Click Dark Portal',
         'emoji': '🌑',
         'duration': (3.0, 5.0),
         'region_key': 'DARK_PORTAL_REGION'
-    }
-]
-
-RUNECRAFTING_STEPS = [
-    {
-        'name': 'Click Minimap to Altar',
-        'emoji': '🗺️',
-        'duration': (2.0, 4.0),
-        'region_key': 'MINIMAP_ALTAR_REGION'
     },
     {
-        'name': 'Click Altar',
-        'emoji': '⛩️',
+        'name': 'Click Reset Camera',
+        'emoji': '📷',
         'duration': (3.0, 5.0),
-        'region_key': 'ALTAR_REGION'
+        'region_key': 'RESET_CAMERA_REGION'
+    },
+    {
+        'name': 'Click Spirit Altar',
+        'emoji': '⛩️',
+        'duration': (5.0, 7.0),
+        'region_key': 'SPIRIT_ALTAR_REGION'
     },
     {
         'name': 'Trigger Minus Keybind',
         'emoji': '➖',
-        'duration': (0.3, 0.8),
+        'duration': (2.0, 3.25),
         'region_key': None,
         'keybinds': ['-']
-    },
-    {
-        'name': 'Walk to Chest',
-        'emoji': '👣',
-        'duration': (2.0, 4.0),
-        'region_key': 'CHEST_WALK_REGION'
     }
 ]
 
-# Combine steps for easy iteration
-ALL_STEPS = BANKING_STEPS + RUNECRAFTING_STEPS
+# Use the single list for all operations
+ALL_STEPS = RUNECRAFTING_STEPS
 
 # ─── Calibration ──────────────────────────────────────────────────────────────
 def calibrate_region(name):
@@ -152,7 +152,7 @@ def calibrate_region(name):
     return (x1, y1, x2, y2)
 
 def calibrate_all_regions():
-    print("\n--- Runespan Calibration Mode ---")
+    print("\n--- Runecrafting Calibration Mode ---")
     regions = {}
     
     # Only calibrate steps that have regions
@@ -234,11 +234,12 @@ MOUSEEVENTF_LEFTDOWN = 0x0002
 MOUSEEVENTF_LEFTUP   = 0x0004
 KEYEVENTF_KEYUP = 0x0002
 
-# Virtual key codes
+# Virtual key codes - Extended for CTRL combinations
 VK_CODE = {
     '0': 0x30, '1': 0x31, '2': 0x32, '3': 0x33, '4': 0x34,
     '5': 0x35, '6': 0x36, '7': 0x37, '8': 0x38, '9': 0x39,
-    '-': 0xBD, '=': 0xBB, 'SPACE': 0x20, 'ENTER': 0x0D
+    '-': 0xBD, '=': 0xBB, 'SPACE': 0x20, 'ENTER': 0x0D,
+    'CTRL': 0x11
 }
 
 def send_native_click(x=None, y=None):
@@ -255,7 +256,54 @@ def send_native_click(x=None, y=None):
     windll.user32.SendInput(1, ctypes.pointer(command), ctypes.sizeof(command))
 
 def send_key_press(key):
-    """Send a key press using Windows SendInput API"""
+    """Send a key press using Windows SendInput API, including CTRL combinations"""
+    
+    # Handle CTRL+key combinations
+    if '+' in key:
+        parts = key.split('+')
+        if len(parts) == 2 and parts[0] == 'CTRL':
+            modifier = parts[0]
+            target_key = parts[1]
+            
+            if modifier not in VK_CODE or target_key not in VK_CODE:
+                logger.warning(f"⚠️  Unknown key combination: {key}")
+                return
+            
+            modifier_vk = VK_CODE[modifier]
+            target_vk = VK_CODE[target_key]
+            extra = ctypes.c_ulong(0)
+            
+            # Press CTRL down
+            ii_ = Input_I()
+            ii_.ki = KeyBdInput(modifier_vk, 0, 0, 0, ctypes.pointer(extra))
+            command = Input(ctypes.c_ulong(INPUT_KEYBOARD), ii_)
+            windll.user32.SendInput(1, ctypes.pointer(command), ctypes.sizeof(command))
+            
+            time.sleep(0.02)
+            
+            # Press target key down
+            ii_.ki = KeyBdInput(target_vk, 0, 0, 0, ctypes.pointer(extra))
+            command = Input(ctypes.c_ulong(INPUT_KEYBOARD), ii_)
+            windll.user32.SendInput(1, ctypes.pointer(command), ctypes.sizeof(command))
+            
+            time.sleep(random.uniform(0.02, 0.05))
+            
+            # Release target key
+            ii_.ki = KeyBdInput(target_vk, 0, KEYEVENTF_KEYUP, 0, ctypes.pointer(extra))
+            command = Input(ctypes.c_ulong(INPUT_KEYBOARD), ii_)
+            windll.user32.SendInput(1, ctypes.pointer(command), ctypes.sizeof(command))
+            
+            time.sleep(0.02)
+            
+            # Release CTRL
+            ii_.ki = KeyBdInput(modifier_vk, 0, KEYEVENTF_KEYUP, 0, ctypes.pointer(extra))
+            command = Input(ctypes.c_ulong(INPUT_KEYBOARD), ii_)
+            windll.user32.SendInput(1, ctypes.pointer(command), ctypes.sizeof(command))
+            
+            logger.debug(f"⌨️  Pressed key combination: {key}")
+            return
+    
+    # Handle single keys
     if key not in VK_CODE:
         logger.warning(f"⚠️  Unknown key: {key}")
         return
@@ -621,30 +669,35 @@ def print_stats():
         elapsed = time.time() - session_stats['session_start']
         total_clicks = sum([
             session_stats['total_bank_chest_clicks'],
-            session_stats['total_preset_clicks'],
-            session_stats['total_minimap_portal_clicks'],
+            session_stats['total_minimap_clicks'],
             session_stats['total_dark_portal_clicks'],
-            session_stats['total_minimap_altar_clicks'],
-            session_stats['total_altar_clicks'],
-            session_stats['total_chest_walk_clicks']
+            session_stats['total_reset_camera_clicks'],
+            session_stats['total_spirit_altar_clicks']
         ])
-        total_actions = total_clicks + session_stats['total_keybind_triggers']
+        total_keybinds = sum([
+            session_stats['total_ctrl_3_triggers'],
+            session_stats['total_0_keybind_triggers'],
+            session_stats['total_2_keybind_triggers'],
+            session_stats['total_minus_keybind_triggers']
+        ])
+        total_actions = total_clicks + total_keybinds
         actions_per_min = (total_actions / elapsed) * 60 if elapsed > 0 else 0
         cycles_per_hour = (session_stats['total_cycles'] / elapsed) * 3600 if elapsed > 0 else 0
         
         logger.info("=" * 70)
-        logger.info("🔮 RUNESPAN SESSION STATISTICS")
+        logger.info("🔮 RUNECRAFTING SESSION STATISTICS")
         logger.info("=" * 70)
-        logger.info("BANKING SECTION:")
+        logger.info("CLICK ACTIONS:")
         logger.info(f"🏦 Bank Chest Clicks: {session_stats['total_bank_chest_clicks']}")
-        logger.info(f"📋 Preset Clicks: {session_stats['total_preset_clicks']}")
-        logger.info(f"⌨️  Keybind Triggers: {session_stats['total_keybind_triggers']}")
-        logger.info(f"🗺️  Minimap to Portal: {session_stats['total_minimap_portal_clicks']}")
+        logger.info(f"🗺️  Mini Map Clicks: {session_stats['total_minimap_clicks']}")
         logger.info(f"🌑 Dark Portal Clicks: {session_stats['total_dark_portal_clicks']}")
-        logger.info("RUNECRAFTING SECTION:")
-        logger.info(f"🗺️  Minimap to Altar: {session_stats['total_minimap_altar_clicks']}")
-        logger.info(f"⛩️  Altar Clicks: {session_stats['total_altar_clicks']}")
-        logger.info(f"👣 Walk to Chest: {session_stats['total_chest_walk_clicks']}")
+        logger.info(f"📷 Reset Camera Clicks: {session_stats['total_reset_camera_clicks']}")
+        logger.info(f"⛩️  Spirit Altar Clicks: {session_stats['total_spirit_altar_clicks']}")
+        logger.info("KEYBIND ACTIONS:")
+        logger.info(f"⌨️  CTRL+3 Triggers: {session_stats['total_ctrl_3_triggers']}")
+        logger.info(f"0️⃣ 0 Key Triggers: {session_stats['total_0_keybind_triggers']}")
+        logger.info(f"2️⃣ 2 Key Triggers: {session_stats['total_2_keybind_triggers']}")
+        logger.info(f"➖ Minus Key Triggers: {session_stats['total_minus_keybind_triggers']}")
         logger.info("OVERALL:")
         logger.info(f"🔄 Total Cycles: {session_stats['total_cycles']}")
         logger.info(f"📍 Total Moves: {session_stats['total_moves']}")
@@ -654,10 +707,10 @@ def print_stats():
         logger.info(f"🔄 Cycles/Hour: {cycles_per_hour:.1f}")
         logger.info("=" * 70)
 
-def execute_step(step_index, step_list):
+def execute_step(step_index):
     global session_stats
     
-    step = step_list[step_index]
+    step = ALL_STEPS[step_index]
     
     # Handle keybind steps
     if step['region_key'] is None and 'keybinds' in step:
@@ -670,7 +723,17 @@ def execute_step(step_index, step_list):
                 delay = random.uniform(0.2, 0.5)  # Longer delay between different keys
                 logger.debug(f"⏳ Delay {delay:.2f}s before next key")
                 time.sleep(delay)
-        session_stats['total_keybind_triggers'] += len(step['keybinds'])
+        
+        # Update specific keybind stats
+        if 'CTRL+3' in step['keybinds']:
+            session_stats['total_ctrl_3_triggers'] += 1
+        if '0' in step['keybinds']:
+            session_stats['total_0_keybind_triggers'] += 1
+        if '2' in step['keybinds']:
+            session_stats['total_2_keybind_triggers'] += 1
+        if '-' in step['keybinds']:
+            session_stats['total_minus_keybind_triggers'] += 1
+            
         logger.info(f"✅ {step['name']} completed - pressed {', '.join(step['keybinds'])}")
         return True
     
@@ -699,11 +762,22 @@ def execute_step(step_index, step_list):
     
     send_native_click(*get_current_mouse_position())
     
-    # Update stats
-    stats_key = f"total_{step['name'].lower().replace(' ', '_').replace('-', '_')}_clicks"
-    if stats_key in session_stats:
-        session_stats[stats_key] += 1
-        logger.info(f"✅ {step['name']} click #{session_stats[stats_key]} completed at {get_current_mouse_position()}")
+    # Update specific click stats
+    if 'Bank Chest' in step['name']:
+        session_stats['total_bank_chest_clicks'] += 1
+        logger.info(f"✅ {step['name']} click #{session_stats['total_bank_chest_clicks']} completed at {get_current_mouse_position()}")
+    elif 'Mini Map' in step['name']:
+        session_stats['total_minimap_clicks'] += 1
+        logger.info(f"✅ {step['name']} click #{session_stats['total_minimap_clicks']} completed at {get_current_mouse_position()}")
+    elif 'Dark Portal' in step['name']:
+        session_stats['total_dark_portal_clicks'] += 1
+        logger.info(f"✅ {step['name']} click #{session_stats['total_dark_portal_clicks']} completed at {get_current_mouse_position()}")
+    elif 'Reset Camera' in step['name']:
+        session_stats['total_reset_camera_clicks'] += 1
+        logger.info(f"✅ {step['name']} click #{session_stats['total_reset_camera_clicks']} completed at {get_current_mouse_position()}")
+    elif 'Spirit Altar' in step['name']:
+        session_stats['total_spirit_altar_clicks'] += 1
+        logger.info(f"✅ {step['name']} click #{session_stats['total_spirit_altar_clicks']} completed at {get_current_mouse_position()}")
     else:
         logger.info(f"✅ {step['name']} completed at {get_current_mouse_position()}")
     
@@ -743,10 +817,10 @@ def smart_wait(wait_time, action_description="next action"):
         else:
             time.sleep(2)
 
-def runespan_loop():
+def runecrafting_loop():
     global current_step, cycle_count, running, session_stats
 
-    logger.info("🔮 Starting Runespan automation. Press '`' to stop, '~' to exit.")
+    logger.info("🔮 Starting Runecrafting automation. Press '`' to stop, '~' to exit.")
     
     # Print all regions
     for step in ALL_STEPS:
@@ -765,27 +839,17 @@ def runespan_loop():
         logger.info(f"⏳ Starting in {i} seconds...")
         time.sleep(1)
     
-    logger.info("🔮 Starting Runespan automation NOW!")
+    logger.info("🔮 Starting Runecrafting automation NOW!")
     
     current_step = 0
     
     while running:
         try:
-            # Determine which step list we're using
-            if current_step < len(BANKING_STEPS):
-                step_list = BANKING_STEPS
-                step_index = current_step
-                section = "BANKING"
-            else:
-                step_list = RUNECRAFTING_STEPS
-                step_index = current_step - len(BANKING_STEPS)
-                section = "RUNECRAFTING"
+            step = ALL_STEPS[current_step]
             
-            step = step_list[step_index]
+            logger.info(f"📍 Step {current_step + 1}/{len(ALL_STEPS)}")
             
-            logger.info(f"📍 {section} SECTION - Step {step_index + 1}/{len(step_list)}")
-            
-            if not execute_step(step_index, step_list):
+            if not execute_step(current_step):
                 break
             
             # Wait for step completion
@@ -796,10 +860,8 @@ def runespan_loop():
             next_step_index = current_step + 1
             if next_step_index >= len(ALL_STEPS):
                 next_step_name = "cycle completion"
-            elif next_step_index < len(BANKING_STEPS):
-                next_step_name = BANKING_STEPS[next_step_index]['name']
             else:
-                next_step_name = RUNECRAFTING_STEPS[next_step_index - len(BANKING_STEPS)]['name']
+                next_step_name = ALL_STEPS[next_step_index]['name']
             
             smart_wait(wait_time, f"completing {step['name']} -> {next_step_name}")
             
@@ -827,13 +889,13 @@ def runespan_loop():
                     smart_wait(break_duration, "break completion")
                     
                     if running:
-                        logger.info("🔄 Break finished, resuming Runespan automation...")
+                        logger.info("🔄 Break finished, resuming Runecrafting automation...")
                         
         except Exception as e:
-            logger.error(f"❌ Error in Runespan loop: {e}")
+            logger.error(f"❌ Error in Runecrafting loop: {e}")
             break
     
-    logger.info("⏸️  Runespan loop stopped.")
+    logger.info("⏸️  Runecrafting loop stopped.")
 
 # ─── Console Keyboard Monitoring ───────────────────────────────────────────────
 
@@ -871,7 +933,7 @@ def handle_start_stop():
         session_stats['session_start'] = time.time()
         logger.info("▶️  AUTOMATION STARTED")
         logger.info(f"🎮 Controls: Press '`' to stop, '~' to exit")
-        click_thread = threading.Thread(target=runespan_loop, daemon=True)
+        click_thread = threading.Thread(target=runecrafting_loop, daemon=True)
         click_thread.start()
     else:
         running = False
@@ -900,28 +962,16 @@ def handle_calibration():
     logger.info("✅ Calibration complete! New regions saved.")
 
 def main():
-    logger.info("🔮 Enhanced Anti-Bot Runespan Automation")
+    logger.info("🔮 Enhanced Anti-Bot Runecrafting Automation")
     logger.info("=" * 70)
     logger.info(f"⌨️  START/STOP: Press '`' (backtick)")
     logger.info(f"⌨️  EXIT: Press '~' (tilde)")
     logger.info(f"🎯 CALIBRATION: Press 'c' to recalibrate all regions")
     logger.info("─" * 70)
-    logger.info("🔮 RUNESPAN CONFIGURATION:")
+    logger.info("🔮 RUNECRAFTING CONFIGURATION:")
     
-    logger.info("\n🏦 BANKING SECTION:")
-    for i, step in enumerate(BANKING_STEPS, 1):
-        region_key = step['region_key']
-        duration = step['duration']
-        if region_key and region_key in regions:
-            logger.info(f"{step['emoji']} {i}. {step['name']}: {regions[region_key]} ({duration[0]:.1f}-{duration[1]:.1f}s)")
-        elif region_key:
-            logger.warning(f"❌ {i}. {step['name']}: NOT CALIBRATED ({duration[0]:.1f}-{duration[1]:.1f}s)")
-        else:
-            keybinds = ', '.join(step.get('keybinds', []))
-            logger.info(f"{step['emoji']} {i}. {step['name']}: Keys [{keybinds}] ({duration[0]:.1f}-{duration[1]:.1f}s)")
-    
-    logger.info("\n⛩️  RUNECRAFTING SECTION:")
-    for i, step in enumerate(RUNECRAFTING_STEPS, 1):
+    logger.info("\n🔄 9-STEP SEQUENCE:")
+    for i, step in enumerate(ALL_STEPS, 1):
         region_key = step['region_key']
         duration = step['duration']
         if region_key and region_key in regions:
@@ -946,23 +996,16 @@ def main():
     logger.info(f"⏳ Initial Delay: {INITIAL_DELAY_SEC} seconds")
     logger.info(f"📊 Progress Updates: Every {PROGRESS_UPDATE_INTERVAL}s for long waits")
     logger.info("=" * 70)
-    logger.info("🔮 RUNESPAN SEQUENCE:")
+    logger.info("🔮 RUNECRAFTING SEQUENCE:")
     
-    logger.info("\n🏦 BANKING PHASE:")
-    for i, step in enumerate(BANKING_STEPS, 1):
+    for i, step in enumerate(ALL_STEPS, 1):
         duration = step['duration']
         logger.info(f"{step['emoji']} {i}. {step['name']} ({duration[0]:.1f}-{duration[1]:.1f}s)")
-        if i < len(BANKING_STEPS):
+        if i < len(ALL_STEPS):
             logger.info("   ⬇️")
+        else:
+            logger.info("   🔄 Loop back to step 1")
     
-    logger.info("\n⛩️  RUNECRAFTING PHASE:")
-    for i, step in enumerate(RUNECRAFTING_STEPS, 1):
-        duration = step['duration']
-        logger.info(f"{step['emoji']} {i}. {step['name']} ({duration[0]:.1f}-{duration[1]:.1f}s)")
-        if i < len(RUNECRAFTING_STEPS):
-            logger.info("   ⬇️")
-    
-    logger.info("   🔄 Loop back to banking")
     logger.info("=" * 70)
     
     # Check if all regions are calibrated
@@ -982,7 +1025,7 @@ def main():
     logger.info("💡 Tip: Adjust anti-bot settings at top of script to customize behavior")
     logger.info("💡 Tip: Press 'c' to recalibrate all step regions")
     logger.info("💡 Tip: Using pure Windows API - no pynput detection!")
-    logger.info("💡 Runespan: Banking → Teleport → Runecrafting → Return")
+    logger.info("💡 New sequence: Bank → CTRL+3 → 0 → 2 → Map → Portal → Camera → Altar → Minus")
     
     try:
         keyboard_monitor()

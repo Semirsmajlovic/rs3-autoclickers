@@ -76,7 +76,7 @@ RUNECRAFTING_STEPS = [
     {
         'name': 'Click Bank Chest',
         'emoji': '🏦',
-        'duration': (4.0, 6.0),
+        'duration': (3.0, 5.0),
         'region_key': 'BANK_CHEST_REGION'
     },
     {
@@ -85,6 +85,13 @@ RUNECRAFTING_STEPS = [
         'duration': (1.0, 2.25),
         'region_key': None,
         'keybinds': ['CTRL+3']
+    },
+        {
+        'name': 'Trigger CTRL+B Keybind',
+        'emoji': '⌨️',
+        'duration': (1.0, 2.25),
+        'region_key': None,
+        'keybinds': ['CTRL+B']
     },
     {
         'name': 'Trigger 0 Keybind',
@@ -127,7 +134,7 @@ RUNECRAFTING_STEPS = [
     {
         'name': 'Trigger Minus Keybind',
         'emoji': '➖',
-        'duration': (2.0, 3.25),
+        'duration': (4.0, 5.25),
         'region_key': None,
         'keybinds': ['-']
     },

@@ -95,8 +95,8 @@ RUNECRAFTING_STEPS = [
     },
     {
         'name': 'Trigger 2 Keybind',
-        'emoji': '2️⃣',
-        'duration': (4.0, 6.0),
+        'emoji':  '2️⃣',
+        'duration': (5.0, 7.0),
         'region_key': None,
         'keybinds': ['2']
     },

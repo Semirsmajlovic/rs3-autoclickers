@@ -86,13 +86,6 @@ RUNECRAFTING_STEPS = [
         'region_key': None,
         'keybinds': ['CTRL+3']
     },
-        {
-        'name': 'Trigger CTRL+B Keybind',
-        'emoji': '⌨️',
-        'duration': (1.0, 2.25),
-        'region_key': None,
-        'keybinds': ['CTRL+B']
-    },
     {
         'name': 'Trigger 0 Keybind',
         'emoji': '0️⃣',

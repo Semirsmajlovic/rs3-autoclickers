@@ -1,3 +1,10 @@
+# INSTRUCTIONS:
+#
+# - Camera: Facing East, Zoomed in and up.
+# - Location: Infront of the Bank Chest @ Fort.
+# - Setup: Full Crafting Armor -> Empty Inv -> Unsure "Preset 10+" is visible -> 
+#          Uncut Gem is in Action Bar 10 "1" spot.
+
 import time
 import random
 import logging

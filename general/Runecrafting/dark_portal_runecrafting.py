@@ -3,8 +3,6 @@
 # Instructions:
 # - Camera: Freedom.
 # - Camera Position: Zoomed Out + Top Maxed.
-#
-#
 
 import time
 import random
@@ -77,19 +75,19 @@ BANKING_STEPS = [
     {
         'name': 'Click Bank Chest',
         'emoji': '🏦',
-        'duration': (0.5, 1.0),
+        'duration': (1.0, 2.25),
         'region_key': 'BANK_CHEST_REGION'
     },
     {
         'name': 'Click Preset',
         'emoji': '📋',
-        'duration': (0.5, 1.0),
+        'duration': (1.0, 2.25),
         'region_key': 'PRESET_REGION'
     },
     {
         'name': 'Trigger Keybinds (0, 2)',
         'emoji': '⌨️',
-        'duration': (0.3, 0.8),
+        'duration': (1.0, 2.25),
         'region_key': None,  # No region needed for keybinds
         'keybinds': ['0', '2']
     },

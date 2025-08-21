@@ -69,7 +69,7 @@ START_STOP_KEY    = '`'
 EXIT_KEY          = '~'
 CALIBRATION_KEY   = 'c'
 
-REGION_FILE = 'runecrafting-regions.json'
+REGION_FILE = 'runecrafting-region-spirit-rune.json'
 
 # New 9-Step Runecrafting Configuration
 RUNECRAFTING_STEPS = [

@@ -1,3 +1,5 @@
+# Camera: Modern -> Zoomed In
+
 import time
 import random
 import logging
@@ -80,7 +82,7 @@ GUARD_CONFIGS = [
 # Keybind Configuration
 KEYBIND_CONFIG = {
     'enabled': True,
-    'key': '0',
+    'key': '9',
     'interval_min': 15 * 60,  # 15 minutes in seconds
     'interval_max': 15.5 * 60,  # 15 minutes 30 seconds
     'emoji': '⌨️'

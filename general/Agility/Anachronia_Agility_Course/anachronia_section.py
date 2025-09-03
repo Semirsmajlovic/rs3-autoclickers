@@ -137,7 +137,7 @@ ANACRONIA_STEPS = [
     {
         'name': 'Traverse Cliff Face',
         'emoji': '🏔️',
-        'duration': (3.75, 5.0),
+        'duration': (6.0, 7.5),
         'region_key': 'CLIFF_FACE_REGION_4'
     }
 ]

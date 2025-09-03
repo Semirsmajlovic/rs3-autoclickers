@@ -1,4 +1,8 @@
-# Camera: Modern -> Zoomed In -> Facing South.
+# ANACRONIA AGILITY COURSE - SCRIPT 
+#
+# Instructions:
+# - Camera: Freedom.
+# - Camera Position: Zoomed Out + Top Maxed.
 
 import time
 import random
@@ -18,19 +22,18 @@ import json
 
 # Global state variables (must be at the very top)
 running = False
-click_count = 0
+current_step = 0
+cycle_count = 0
 click_thread = None
-keybind_thread = None
 start_time = None
-last_keybind_time = None
 session_stats = {
-    'total_colonised_varrock_guard_clicks': 0,
-    'guard1_clicks': 0,
-    'guard2_clicks': 0,
+    'total_cliff_face_clicks': 0,
+    'total_ruined_temple_clicks': 0,
+    'total_cave_entrance_clicks': 0,
+    'total_cross_roots_clicks': 0,
     'total_moves': 0,
     'total_breaks': 0,
     'total_cycles': 0,
-    'total_keybind_presses': 0,
     'session_start': None
 }
 
@@ -61,32 +64,86 @@ START_STOP_KEY    = '`'
 EXIT_KEY          = '~'
 CALIBRATION_KEY   = 'c'
 
-REGION_FILE = 'colonised-varrock-guard-regions.json'
+REGION_FILE = 'anacronia-agility-course.json'
 
-# Dual Colonised Varrock Guard Configuration
-GUARD_CONFIGS = [
+# 12-Step Anacronia Agility Course Configuration
+ANACRONIA_STEPS = [
     {
-        'name': 'Colonised Varrock Guard #1',
-        'emoji': '⚔️',
-        'duration': (20.0, 40.0),  # 20-40 seconds
-        'region_key': 'COLONISED_VARROCK_GUARD_1_REGION'
+        'name': 'Traverse Cliff Face',
+        'emoji': '🏔️',
+        'duration': (3.75, 5.0),
+        'region_key': 'CLIFF_FACE_REGION_1'
     },
     {
-        'name': 'Colonised Varrock Guard #2',
-        'emoji': '🛡️',
-        'duration': (20.0, 40.0),  # 20-40 seconds
-        'region_key': 'COLONISED_VARROCK_GUARD_2_REGION'
+        'name': 'Traverse Cliff Face',
+        'emoji': '🏔️',
+        'duration': (5.5, 7.0),
+        'region_key': 'CLIFF_FACE_REGION_2'
+    },
+    {
+        'name': 'Traverse Ruined Temple',
+        'emoji': '🏛️',
+        'duration': (7.75, 9.0),
+        'region_key': 'RUINED_TEMPLE_REGION_1'
+    },
+    {
+        'name': 'Traverse Ruined Temple',
+        'emoji': '🏛️',
+        'duration': (8.0, 9.5),
+        'region_key': 'RUINED_TEMPLE_REGION_2'
+    },
+    {
+        'name': 'Enter Cave Entrance',
+        'emoji': '🕳️',
+        'duration': (7.0, 8.25),
+        'region_key': 'CAVE_ENTRANCE_REGION_1'
+    },
+    {
+        'name': 'Cross Roots',
+        'emoji': '🌿',
+        'duration': (8.25, 9.5),
+        'region_key': 'CROSS_ROOTS_REGION_1'
+    },
+    {
+        'name': 'Cross Roots',
+        'emoji': '🌿',
+        'duration': (8.25, 9.5),
+        'region_key': 'CROSS_ROOTS_REGION_2'
+    },
+    {
+        'name': 'Enter Cave Entrance',
+        'emoji': '🕳️',
+        'duration': (7.0, 8.25),
+        'region_key': 'CAVE_ENTRANCE_REGION_2'
+    },
+    {
+        'name': 'Traverse Ruined Temple',
+        'emoji': '🏛️',
+        'duration': (8.0, 9.5),
+        'region_key': 'RUINED_TEMPLE_REGION_3'
+    },
+    {
+        'name': 'Traverse Ruined Temple',
+        'emoji': '🏛️',
+        'duration': (7.75, 9.0),
+        'region_key': 'RUINED_TEMPLE_REGION_4'
+    },
+    {
+        'name': 'Traverse Cliff Face',
+        'emoji': '🏔️',
+        'duration': (5.5, 7.0),
+        'region_key': 'CLIFF_FACE_REGION_3'
+    },
+    {
+        'name': 'Traverse Cliff Face',
+        'emoji': '🏔️',
+        'duration': (3.75, 5.0),
+        'region_key': 'CLIFF_FACE_REGION_4'
     }
 ]
 
-# Keybind Configuration
-KEYBIND_CONFIG = {
-    'enabled': True,
-    'key': '9',
-    'interval_min': 15 * 60,  # 15 minutes in seconds
-    'interval_max': 15.5 * 60,  # 15 minutes 30 seconds
-    'emoji': '⌨️'
-}
+# Use the single list for all operations
+ALL_STEPS = ANACRONIA_STEPS
 
 # ─── Calibration ──────────────────────────────────────────────────────────────
 def calibrate_region(name):
@@ -103,17 +160,18 @@ def calibrate_region(name):
     print(f"{name} region: ({x1}, {y1}, {x2}, {y2})")
     return (x1, y1, x2, y2)
 
-def calibrate_guard_regions():
-    print("\n--- Dual Colonised Varrock Guard Calibration Mode ---")
+def calibrate_all_regions():
+    print("\n--- Anacronia Agility Course Calibration Mode ---")
     regions = {}
     
-    for i, guard_config in enumerate(GUARD_CONFIGS, 1):
-        print(f"\nCalibrating {guard_config['name']}:")
-        regions[guard_config['region_key']] = calibrate_region(guard_config['name'])
+    # Only calibrate steps that have regions
+    for step in ALL_STEPS:
+        if step['region_key']:
+            regions[step['region_key']] = calibrate_region(step['name'])
     
     with open(REGION_FILE, 'w') as f:
         json.dump(regions, f)
-    print(f"\nAll regions saved to {REGION_FILE}!")
+    print(f"Regions saved to {REGION_FILE}!")
     return regions
 
 def load_regions():
@@ -122,17 +180,17 @@ def load_regions():
             return json.load(f)
     else:
         logger.warning("No region calibration found. Please calibrate (press 'c').")
-        return calibrate_guard_regions()
+        return calibrate_all_regions()
 
 regions = load_regions()
 
-MIN_CLICKS_BEFORE_BREAK = 40
+MIN_CYCLES_BEFORE_BREAK = 6
 BREAK_MIN_SEC     = 15
-BREAK_MAX_SEC     = 45
+BREAK_MAX_SEC     = 35
 INITIAL_DELAY_SEC = 10
 
 PROGRESS_UPDATE_INTERVAL = 120
-SHOW_DETAILED_PROGRESS = True
+SHOW_DETAILED_PROGRESS = False
 FORCE_GARBAGE_COLLECTION = True
 
 ENABLE_CURVED_PATHS = True
@@ -145,83 +203,20 @@ ENABLE_DISTRACTION_MOVES = True
 CURVE_INTENSITY = 0.3
 OVERSHOOT_CHANCE = 0.15
 HESITATION_CHANCE = 0.25
-DISTRACTION_CHANCE = 0.08
+DISTRACTION_CHANCE = 0.06
 MICRO_CORRECTION_CHANCE = 0.4
 
-# ─── Windows API Keyboard Input ───────────────────────────────────────────────
-def send_key_press(key_char):
-    """Send a key press using Windows API - works globally regardless of focus"""
-    try:
-        # Get virtual key code for the character
-        vk_code = ord(key_char.upper())
-        
-        # Key down
-        windll.user32.keybd_event(vk_code, 0, 0, 0)
-        time.sleep(0.05)  # Brief hold
-        # Key up
-        windll.user32.keybd_event(vk_code, 0, 2, 0)  # 2 = KEYEVENTF_KEYUP
-        
-        logger.info(f"⌨️ Key '{key_char}' pressed successfully")
-        return True
-    except Exception as e:
-        logger.error(f"❌ Failed to send key '{key_char}': {e}")
-        return False
-
-def keybind_loop():
-    """Background thread that handles periodic keybind presses"""
-    global last_keybind_time, session_stats
-    
-    if not KEYBIND_CONFIG['enabled']:
-        logger.info("⌨️ Keybind loop disabled in configuration")
-        return
-    
-    logger.info(f"⌨️ Starting keybind loop - will press '{KEYBIND_CONFIG['key']}' every {KEYBIND_CONFIG['interval_min']/60:.1f}-{KEYBIND_CONFIG['interval_max']/60:.1f} minutes")
-    
-    last_keybind_time = time.time()
-    
-    while running:
-        try:
-            current_time = time.time()
-            
-            # Calculate next keybind interval
-            next_interval = random.uniform(KEYBIND_CONFIG['interval_min'], KEYBIND_CONFIG['interval_max'])
-            next_keybind_time = last_keybind_time + next_interval
-            
-            # Wait until it's time for the next keybind
-            while running and current_time < next_keybind_time:
-                time.sleep(10)  # Check every 10 seconds
-                current_time = time.time()
-                
-                # Log upcoming keybind if within 1 minute
-                time_until_keybind = next_keybind_time - current_time
-                if time_until_keybind <= 60 and time_until_keybind > 50:
-                    logger.info(f"⌨️ Next '{KEYBIND_CONFIG['key']}' keybind in {time_until_keybind:.0f} seconds...")
-            
-            if not running:
-                break
-            
-            # Execute keybind
-            logger.info(f"{KEYBIND_CONFIG['emoji']} Executing periodic keybind: '{KEYBIND_CONFIG['key']}'")
-            
-            if send_key_press(KEYBIND_CONFIG['key']):
-                session_stats['total_keybind_presses'] += 1
-                last_keybind_time = time.time()
-                
-                # Log next keybind time
-                next_interval = random.uniform(KEYBIND_CONFIG['interval_min'], KEYBIND_CONFIG['interval_max'])
-                next_time_formatted = format_time(next_interval)
-                logger.info(f"✅ Keybind #{session_stats['total_keybind_presses']} completed. Next in {next_time_formatted}")
-            else:
-                logger.warning("⚠️ Keybind failed, will retry next cycle")
-                
-        except Exception as e:
-            logger.error(f"❌ Error in keybind loop: {e}")
-            time.sleep(30)  # Wait before retrying
-    
-    logger.info("⏸️ Keybind loop stopped.")
-
-# ─── Native Windows Mouse Click with ctypes/SendInput ─────────────────────────
+# ─── Native Windows Mouse Click and Keyboard Input ───────────────────────────
 PUL = ctypes.POINTER(ctypes.c_ulong)
+class KeyBdInput(ctypes.Structure):
+    _fields_ = [
+        ("wVk", ctypes.c_ushort),
+        ("wScan", ctypes.c_ushort),
+        ("dwFlags", ctypes.c_ulong),
+        ("time", ctypes.c_ulong),
+        ("dwExtraInfo", PUL)
+    ]
+
 class MouseInput(ctypes.Structure):
     _fields_ = [
         ("dx", ctypes.c_long),
@@ -231,15 +226,22 @@ class MouseInput(ctypes.Structure):
         ("time", ctypes.c_ulong),
         ("dwExtraInfo", PUL)
     ]
+
 class Input_I(ctypes.Union):
-    _fields_ = [("mi", MouseInput)]
+    _fields_ = [("ki", KeyBdInput), ("mi", MouseInput)]
+
 class Input(ctypes.Structure):
     _fields_ = [
         ("type", ctypes.c_ulong),
         ("ii", Input_I)
     ]
+
+# Constants for input types and flags
+INPUT_MOUSE = 0
+INPUT_KEYBOARD = 1
 MOUSEEVENTF_LEFTDOWN = 0x0002
 MOUSEEVENTF_LEFTUP   = 0x0004
+KEYEVENTF_KEYUP = 0x0002
 
 def send_native_click(x=None, y=None):
     if x is not None and y is not None:
@@ -247,11 +249,11 @@ def send_native_click(x=None, y=None):
     extra = ctypes.c_ulong(0)
     ii_ = Input_I()
     ii_.mi = MouseInput(0, 0, 0, MOUSEEVENTF_LEFTDOWN, 0, ctypes.pointer(extra))
-    command = Input(ctypes.c_ulong(0), ii_)
+    command = Input(ctypes.c_ulong(INPUT_MOUSE), ii_)
     windll.user32.SendInput(1, ctypes.pointer(command), ctypes.sizeof(command))
     time.sleep(0.01)
     ii_.mi = MouseInput(0, 0, 0, MOUSEEVENTF_LEFTUP, 0, ctypes.pointer(extra))
-    command = Input(ctypes.c_ulong(0), ii_)
+    command = Input(ctypes.c_ulong(INPUT_MOUSE), ii_)
     windll.user32.SendInput(1, ctypes.pointer(command), ctypes.sizeof(command))
 
 def set_mouse_position(x, y):
@@ -594,53 +596,48 @@ def format_time(seconds):
 def print_stats():
     if session_stats['session_start']:
         elapsed = time.time() - session_stats['session_start']
-        total_clicks = session_stats['total_colonised_varrock_guard_clicks']
-        clicks_per_min = (total_clicks / elapsed) * 60 if elapsed > 0 else 0
-        clicks_per_hour = (total_clicks / elapsed) * 3600 if elapsed > 0 else 0
-        keybind_per_hour = (session_stats['total_keybind_presses'] / elapsed) * 3600 if elapsed > 0 else 0
+        total_clicks = sum([
+            session_stats['total_cliff_face_clicks'],
+            session_stats['total_ruined_temple_clicks'],
+            session_stats['total_cave_entrance_clicks'],
+            session_stats['total_cross_roots_clicks']
+        ])
+        total_actions = total_clicks
+        actions_per_min = (total_actions / elapsed) * 60 if elapsed > 0 else 0
+        cycles_per_hour = (session_stats['total_cycles'] / elapsed) * 3600 if elapsed > 0 else 0
         
         logger.info("=" * 70)
-        logger.info("⚔️ DUAL COLONISED VARROCK GUARD SESSION STATISTICS")
+        logger.info("🏃 ANACRONIA AGILITY COURSE SESSION STATISTICS")
         logger.info("=" * 70)
-        logger.info(f"⚔️ Total Guard Clicks: {session_stats['total_colonised_varrock_guard_clicks']}")
-        logger.info(f"  ├─ Guard #1 Clicks: {session_stats['guard1_clicks']}")
-        logger.info(f"  └─ Guard #2 Clicks: {session_stats['guard2_clicks']}")
-        logger.info(f"⌨️ Keybind Presses ('{KEYBIND_CONFIG['key']}'): {session_stats['total_keybind_presses']}")
+        logger.info("OBSTACLE ACTIONS:")
+        logger.info(f"🏔️  Cliff Face Traversals: {session_stats['total_cliff_face_clicks']}")
+        logger.info(f"🏛️  Ruined Temple Traversals: {session_stats['total_ruined_temple_clicks']}")
+        logger.info(f"🕳️  Cave Entrance Entries: {session_stats['total_cave_entrance_clicks']}")
+        logger.info(f"🌿 Root Crossings: {session_stats['total_cross_roots_clicks']}")
+        logger.info("OVERALL:")
+        logger.info(f"🔄 Total Cycles: {session_stats['total_cycles']}")
         logger.info(f"📍 Total Moves: {session_stats['total_moves']}")
         logger.info(f"☕ Total Breaks: {session_stats['total_breaks']}")
         logger.info(f"⏱️  Session Time: {format_time(elapsed)}")
-        logger.info(f"⚡ Clicks/Min: {clicks_per_min:.1f}")
-        logger.info(f"⚡ Clicks/Hour: {clicks_per_hour:.1f}")
-        logger.info(f"⌨️ Keybinds/Hour: {keybind_per_hour:.1f}")
-        
-        # Guard distribution percentage
-        if total_clicks > 0:
-            guard1_percent = (session_stats['guard1_clicks'] / total_clicks) * 100
-            guard2_percent = (session_stats['guard2_clicks'] / total_clicks) * 100
-            logger.info(f"📊 Guard Distribution: G1={guard1_percent:.1f}% | G2={guard2_percent:.1f}%")
-        
+        logger.info(f"⚡ Actions/Min: {actions_per_min:.1f}")
+        logger.info(f"🔄 Cycles/Hour: {cycles_per_hour:.1f}")
         logger.info("=" * 70)
 
-def select_random_guard():
-    """Randomly select one of the two guards"""
-    return random.choice(GUARD_CONFIGS)
-
-def click_guard():
+def execute_step(step_index):
     global session_stats
     
-    # Randomly select which guard to click
-    selected_guard = select_random_guard()
-    region_key = selected_guard['region_key']
+    step = ALL_STEPS[step_index]
+    region_key = step['region_key']
     
     if region_key not in regions:
-        logger.error(f"❌ Region not found for {selected_guard['name']}! Please calibrate.")
+        logger.error(f"❌ Region not found for {step['name']}! Please calibrate.")
         return False
     
     region = tuple(regions[region_key])
     
-    logger.info(f"{selected_guard['emoji']} Clicking {selected_guard['name']}...")
+    logger.info(f"{step['emoji']} Clicking {step['name']}...")
     tx, ty = random_target_within(region)
-    logger.info(f"🎯 Moving to {selected_guard['name']}: ({tx}, {ty})")
+    logger.info(f"🎯 Moving to {step['name']}: ({tx}, {ty})")
     human_move(tx, ty)
     
     if not running:
@@ -654,18 +651,23 @@ def click_guard():
     
     send_native_click(*get_current_mouse_position())
     
-    # Update stats - track which guard was clicked
-    session_stats['total_colonised_varrock_guard_clicks'] += 1
-    if region_key == GUARD_CONFIGS[0]['region_key']:
-        session_stats['guard1_clicks'] += 1
+    # Update specific obstacle stats
+    if 'Cliff Face' in step['name']:
+        session_stats['total_cliff_face_clicks'] += 1
+        logger.info(f"✅ {step['name']} traversal #{session_stats['total_cliff_face_clicks']} completed at {get_current_mouse_position()}")
+    elif 'Ruined Temple' in step['name']:
+        session_stats['total_ruined_temple_clicks'] += 1
+        logger.info(f"✅ {step['name']} traversal #{session_stats['total_ruined_temple_clicks']} completed at {get_current_mouse_position()}")
+    elif 'Cave Entrance' in step['name']:
+        session_stats['total_cave_entrance_clicks'] += 1
+        logger.info(f"✅ {step['name']} entry #{session_stats['total_cave_entrance_clicks']} completed at {get_current_mouse_position()}")
+    elif 'Cross Roots' in step['name']:
+        session_stats['total_cross_roots_clicks'] += 1
+        logger.info(f"✅ {step['name']} crossing #{session_stats['total_cross_roots_clicks']} completed at {get_current_mouse_position()}")
     else:
-        session_stats['guard2_clicks'] += 1
+        logger.info(f"✅ {step['name']} completed at {get_current_mouse_position()}")
     
-    logger.info(f"✅ {selected_guard['name']} click completed at {get_current_mouse_position()}")
-    logger.info(f"📊 Total: {session_stats['total_colonised_varrock_guard_clicks']} | G1: {session_stats['guard1_clicks']} | G2: {session_stats['guard2_clicks']}")
-    
-    # Use the selected guard's duration for wait time
-    return selected_guard
+    return True
 
 def smart_wait(wait_time, action_description="next action"):
     if wait_time <= 30:
@@ -701,18 +703,17 @@ def smart_wait(wait_time, action_description="next action"):
         else:
             time.sleep(2)
 
-def guard_clicking_loop():
-    global click_count, running, session_stats
+def anacronia_loop():
+    global current_step, cycle_count, running, session_stats
 
-    logger.info("⚔️ Starting Dual Colonised Varrock Guard automation. Press '`' to stop, '~' to exit.")
+    logger.info("🏃 Starting Anacronia Agility Course automation. Press '`' to stop, '~' to exit.")
     
-    # Print region info for both guards
-    for i, guard_config in enumerate(GUARD_CONFIGS):
-        region_key = guard_config['region_key']
-        if region_key in regions:
-            logger.info(f"{guard_config['emoji']} {guard_config['name']} Region: {regions[region_key]}")
-        else:
-            logger.warning(f"❌ {guard_config['name']}: NOT CALIBRATED")
+    # Print all regions
+    for step in ALL_STEPS:
+        if step['region_key'] and step['region_key'] in regions:
+            logger.info(f"{step['emoji']} {step['name']} Region: {regions[step['region_key']]}")
+        elif step['region_key']:
+            logger.warning(f"❌ {step['name']}: NOT CALIBRATED")
     
     logger.info(f"⏳ Initial delay: {INITIAL_DELAY_SEC} seconds to switch screens...")
     for i in range(INITIAL_DELAY_SEC, 0, -1):
@@ -722,49 +723,63 @@ def guard_clicking_loop():
         logger.info(f"⏳ Starting in {i} seconds...")
         time.sleep(1)
     
-    logger.info("⚔️ Starting Dual Guard automation NOW!")
+    logger.info("🏃 Starting Anacronia Agility Course automation NOW!")
     
-    click_count = 0
+    current_step = 0
     
     while running:
         try:
-            # Click a randomly selected guard
-            selected_guard = click_guard()
-            if not selected_guard:
+            step = ALL_STEPS[current_step]
+            
+            logger.info(f"📍 Step {current_step + 1}/{len(ALL_STEPS)}")
+            
+            if not execute_step(current_step):
                 break
             
-            click_count += 1
-            
-            # Wait for respawn/cooldown using the selected guard's duration
-            min_duration, max_duration = selected_guard['duration']
+            # Wait for step completion
+            min_duration, max_duration = step['duration']
             wait_time = random.uniform(min_duration, max_duration)
             
-            next_guard_preview = select_random_guard()  # Preview next guard for logging
-            smart_wait(wait_time, f"next guard click (#{click_count + 1}) - Next: {next_guard_preview['name']}")
+            # Determine next step description
+            next_step_index = current_step + 1
+            if next_step_index >= len(ALL_STEPS):
+                next_step_name = "cycle completion"
+            else:
+                next_step_name = ALL_STEPS[next_step_index]['name']
             
-            # Print stats every 10 clicks
-            if click_count % 10 == 0:
-                logger.info(f"⚔️ ======================================== {click_count} Guard Clicks Completed!")
-                print_stats()
-                if FORCE_GARBAGE_COLLECTION:
-                    gc.collect()
+            smart_wait(wait_time, f"completing {step['name']} -> {next_step_name}")
             
-            # Take break every X clicks
-            if click_count % MIN_CLICKS_BEFORE_BREAK == 0:
-                break_duration = random.uniform(BREAK_MIN_SEC, BREAK_MAX_SEC)
-                session_stats['total_breaks'] += 1
-                logger.info(f"☕ Taking break #{session_stats['total_breaks']} for {break_duration:.1f}s after {click_count} clicks...")
+            # Move to next step
+            current_step = (current_step + 1) % len(ALL_STEPS)
+            
+            # Check if we completed a full cycle
+            if current_step == 0:
+                cycle_count += 1
+                session_stats['total_cycles'] += 1
+                logger.info(f"🔄 ======================================== Cycle #{cycle_count} completed!")
                 
-                smart_wait(break_duration, "break completion")
+                # Print stats every 2 cycles
+                if cycle_count % 2 == 0:
+                    print_stats()
+                    if FORCE_GARBAGE_COLLECTION:
+                        gc.collect()
                 
-                if running:
-                    logger.info("🔄 Break finished, resuming dual guard clicking automation...")
+                # Take break every few cycles
+                if cycle_count % MIN_CYCLES_BEFORE_BREAK == 0:
+                    break_duration = random.uniform(BREAK_MIN_SEC, BREAK_MAX_SEC)
+                    session_stats['total_breaks'] += 1
+                    logger.info(f"☕ Taking break #{session_stats['total_breaks']} for {break_duration:.1f}s after {cycle_count} cycles...")
                     
+                    smart_wait(break_duration, "break completion")
+                    
+                    if running:
+                        logger.info("🔄 Break finished, resuming Anacronia Agility Course automation...")
+                        
         except Exception as e:
-            logger.error(f"❌ Error in guard clicking loop: {e}")
+            logger.error(f"❌ Error in Anacronia agility loop: {e}")
             break
     
-    logger.info("⏸️  Guard clicking loop stopped.")
+    logger.info("⏸️  Anacronia agility loop stopped.")
 
 # ─── Console Keyboard Monitoring ───────────────────────────────────────────────
 
@@ -796,88 +811,61 @@ def keyboard_monitor():
         logger.error(f"❌ Error in keyboard monitor: {e}")
 
 def handle_start_stop():
-    global running, click_thread, keybind_thread, session_stats
+    global running, click_thread, session_stats
     if not running:
         running = True
         session_stats['session_start'] = time.time()
-        logger.info("▶️  DUAL GUARD AUTOMATION STARTED")
+        logger.info("▶️  AUTOMATION STARTED")
         logger.info(f"🎮 Controls: Press '`' to stop, '~' to exit")
-        
-        # Start both threads
-        click_thread = threading.Thread(target=guard_clicking_loop, daemon=True)
+        click_thread = threading.Thread(target=anacronia_loop, daemon=True)
         click_thread.start()
-        
-        if KEYBIND_CONFIG['enabled']:
-            keybind_thread = threading.Thread(target=keybind_loop, daemon=True)
-            keybind_thread.start()
-            logger.info(f"⌨️ Keybind automation started - pressing '{KEYBIND_CONFIG['key']}' every {KEYBIND_CONFIG['interval_min']/60:.1f}-{KEYBIND_CONFIG['interval_max']/60:.1f} minutes")
-        
     else:
         running = False
-        logger.info("⏸️  DUAL GUARD AUTOMATION PAUSED")
-        
-        # Wait for threads to finish
+        logger.info("⏸️  AUTOMATION PAUSED")
         if click_thread and click_thread.is_alive():
-            logger.info("⏳ Waiting for guard clicking to complete...")
+            logger.info("⏳ Waiting for current action to complete...")
             click_thread.join(timeout=5)
-            
-        if keybind_thread and keybind_thread.is_alive():
-            logger.info("⏳ Waiting for keybind thread to complete...")
-            keybind_thread.join(timeout=5)
-            
         print_stats()
         logger.info(f"🎮 Press '`' to resume, '~' to exit")
 
 def handle_exit():
-    global running, click_thread, keybind_thread
+    global running, click_thread
     logger.info("🛑 EXIT REQUESTED")
     running = False
-    
-    # Wait for both threads
     if click_thread and click_thread.is_alive():
-        logger.info("⏳ Waiting for guard automation to stop...")
+        logger.info("⏳ Waiting for automation to stop...")
         click_thread.join(timeout=5)
-        
-    if keybind_thread and keybind_thread.is_alive():
-        logger.info("⏳ Waiting for keybind automation to stop...")
-        keybind_thread.join(timeout=5)
-        
     print_stats()
     logger.info("👋 Goodbye!")
     sys.exit(0)
 
 def handle_calibration():
     global regions
-    logger.info("🎯 CALIBRATION MODE - Recalibrating both guard regions")
-    regions = calibrate_guard_regions()
+    logger.info("🎯 CALIBRATION MODE - Recalibrating all regions")
+    regions = calibrate_all_regions()
     logger.info("✅ Calibration complete! New regions saved.")
 
 def main():
-    logger.info("⚔️ Enhanced Anti-Bot Dual Colonised Varrock Guard Automation with Keybinds")
-    logger.info("=" * 80)
+    logger.info("🏃 Enhanced Anti-Bot Anacronia Agility Course Automation")
+    logger.info("=" * 70)
     logger.info(f"⌨️  START/STOP: Press '`' (backtick)")
     logger.info(f"⌨️  EXIT: Press '~' (tilde)")
-    logger.info(f"🎯 CALIBRATION: Press 'c' to recalibrate both guard regions")
-    logger.info("─" * 80)
-    logger.info("🖥️  DUAL COLONISED VARROCK GUARD CONFIGURATION:")
+    logger.info(f"🎯 CALIBRATION: Press 'c' to recalibrate all regions")
+    logger.info("─" * 70)
+    logger.info("🏃 ANACRONIA AGILITY COURSE CONFIGURATION:")
     
-    for i, guard_config in enumerate(GUARD_CONFIGS, 1):
-        region_key = guard_config['region_key']
-        if region_key in regions:
-            duration = guard_config['duration']
-            logger.info(f"{guard_config['emoji']} {guard_config['name']}: {regions[region_key]} ({duration[0]:.0f}-{duration[1]:.0f}s)")
+    logger.info("\n🔄 12-STEP SEQUENCE:")
+    for i, step in enumerate(ALL_STEPS, 1):
+        region_key = step['region_key']
+        duration = step['duration']
+        if region_key and region_key in regions:
+            logger.info(f"{step['emoji']} {i}. {step['name']}: {regions[region_key]} ({duration[0]:.2f}-{duration[1]:.2f}s)")
+        elif region_key:
+            logger.warning(f"❌ {i}. {step['name']}: NOT CALIBRATED ({duration[0]:.2f}-{duration[1]:.2f}s)")
         else:
-            logger.warning(f"❌ {guard_config['name']}: NOT CALIBRATED")
+            logger.info(f"{step['emoji']} {i}. {step['name']}: ({duration[0]:.2f}-{duration[1]:.2f}s)")
     
-    logger.info("─" * 80)
-    logger.info("⌨️  KEYBIND CONFIGURATION:")
-    if KEYBIND_CONFIG['enabled']:
-        logger.info(f"{KEYBIND_CONFIG['emoji']} Periodic Key Press: '{KEYBIND_CONFIG['key']}' every {KEYBIND_CONFIG['interval_min']/60:.1f}-{KEYBIND_CONFIG['interval_max']/60:.1f} minutes")
-        logger.info(f"✅ Keybind automation: ENABLED")
-    else:
-        logger.info(f"❌ Keybind automation: DISABLED")
-    
-    logger.info("─" * 80)
+    logger.info("─" * 70)
     logger.info("🤖 ANTI-BOT DETECTION FEATURES:")
     logger.info(f"🏹 Curved Paths: {'✅ Enabled' if ENABLE_CURVED_PATHS else '❌ Disabled'}")
     logger.info(f"🎯 Overshoot Correction: {'✅ Enabled' if ENABLE_OVERSHOOT else '❌ Disabled'} ({OVERSHOOT_CHANCE*100:.0f}% chance)")
@@ -886,43 +874,41 @@ def main():
     logger.info(f"🌊 Momentum Simulation: {'✅ Enabled' if ENABLE_MOMENTUM else '❌ Disabled'}")
     logger.info(f"👀 Distraction Moves: {'✅ Enabled' if ENABLE_DISTRACTION_MOVES else '❌ Disabled'} ({DISTRACTION_CHANCE*100:.0f}% chance)")
     logger.info(f"🎨 Curve Intensity: {CURVE_INTENSITY*100:.0f}%")
-    logger.info("─" * 80)
-    logger.info(f"☕ Break Every: {MIN_CLICKS_BEFORE_BREAK} clicks")
+    logger.info("─" * 70)
+    logger.info(f"☕ Break Every: {MIN_CYCLES_BEFORE_BREAK} cycles")
     logger.info(f"⏳ Initial Delay: {INITIAL_DELAY_SEC} seconds")
     logger.info(f"📊 Progress Updates: Every {PROGRESS_UPDATE_INTERVAL}s for long waits")
-    logger.info(f"⏰ Guard Respawn Time: {GUARD_CONFIGS[0]['duration'][0]:.0f}-{GUARD_CONFIGS[0]['duration'][1]:.0f} seconds (both guards)")
-    logger.info("=" * 80)
-    logger.info("⚔️ DUAL GUARD AUTOMATION SEQUENCE:")
-    logger.info(f"🎲 1. Randomly select between Guard #1 {GUARD_CONFIGS[0]['emoji']} and Guard #2 {GUARD_CONFIGS[1]['emoji']}")
-    logger.info(f"⚔️ 2. Click selected guard ({GUARD_CONFIGS[0]['duration'][0]:.0f}-{GUARD_CONFIGS[0]['duration'][1]:.0f}s)")
-    if KEYBIND_CONFIG['enabled']:
-        logger.info(f"{KEYBIND_CONFIG['emoji']} 3. Periodic '{KEYBIND_CONFIG['key']}' key press every {KEYBIND_CONFIG['interval_min']/60:.1f}-{KEYBIND_CONFIG['interval_max']/60:.1f} minutes (background)")
-    logger.info("   ⬇️")
-    logger.info("   ⏰ Wait for respawn")
-    logger.info("   ⬇️")
-    logger.info("   🔄 Loop back to step 1 (new random selection)")
-    logger.info("=" * 80)
+    logger.info("=" * 70)
+    logger.info("🏃 ANACRONIA AGILITY COURSE SEQUENCE:")
     
-    # Check if regions are calibrated
+    for i, step in enumerate(ALL_STEPS, 1):
+        duration = step['duration']
+        logger.info(f"{step['emoji']} {i}. {step['name']} ({duration[0]:.2f}-{duration[1]:.2f}s)")
+        if i < len(ALL_STEPS):
+            logger.info("   ⬇️")
+        else:
+            logger.info("   🔄 Loop back to step 1")
+    
+    logger.info("=" * 70)
+    
+    # Check if all regions are calibrated
     missing_regions = []
-    for guard_config in GUARD_CONFIGS:
-        if guard_config['region_key'] not in regions:
-            missing_regions.append(guard_config['name'])
+    for step in ALL_STEPS:
+        if step['region_key'] and step['region_key'] not in regions:
+            missing_regions.append(step['name'])
     
     if missing_regions:
         logger.warning(f"❌ Missing calibration for: {', '.join(missing_regions)}")
-        logger.warning("⚠️  Please press 'c' to calibrate both guard regions before starting!")
+        logger.warning("⚠️  Please press 'c' to calibrate all regions before starting!")
     else:
-        logger.info("✅ Both guard regions calibrated and ready!")
+        logger.info("✅ All regions calibrated and ready!")
     
-    logger.info("💡 Ready! Press '`' (backtick) to start dual guard automation...")
+    logger.info("💡 Ready! Press '`' (backtick) to start automation...")
     logger.info("💡 Enhanced with human-like movement patterns to avoid detection!")
-    logger.info("💡 Now includes random rotation between two guards for enhanced realism!")
-    logger.info("💡 Periodic keybind automation runs in background!")
     logger.info("💡 Tip: Adjust anti-bot settings at top of script to customize behavior")
-    logger.info("💡 Tip: Press 'c' to recalibrate both guard regions")
+    logger.info("💡 Tip: Press 'c' to recalibrate all obstacle regions")
     logger.info("💡 Tip: Using pure Windows API - no pynput detection!")
-    logger.info(f"💡 Statistics track individual guard clicks for balanced distribution")
+    logger.info("💡 12-Step Course: Cliff Face (x2) → Ruined Temple (x2) → Cave → Roots (x2) → Cave → Ruined Temple (x2) → Cliff Face (x2)")
     
     try:
         keyboard_monitor()

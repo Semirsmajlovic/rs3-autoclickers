@@ -2,7 +2,7 @@
 #
 # Instructions:
 # - Camera: Freedom.
-# - Camera Position: Zoomed Out + Top Maxed.
+# - Camera Position: Zoomed Out + Top Maxed -> Facing West.
 
 import time
 import random

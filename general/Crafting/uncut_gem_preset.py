@@ -1,8 +1,8 @@
 # INSTRUCTIONS:
 #
-# - Camera: Facing East, Zoomed in and up.
+# - Camera: Facing East -> Zoomed In -> Maxed Up.
 # - Location: Infront of the Bank Chest @ Fort.
-# - Setup: Full Crafting Armor -> Empty Inv -> Unsure "Preset 10+" is visible -> 
+# - Setup: Full Crafting Armor -> Empty Inv -> Ensure "Preset 10+" is visible -> 
 #          Uncut Gem is in Action Bar 10 "1" spot.
 
 import time
@@ -64,6 +64,7 @@ logger.addHandler(handler)
 START_STOP_KEY    = '`'
 EXIT_KEY          = '~'
 CALIBRATION_KEY   = 'c'
+TOGGLE_BREAKS_KEY = 'b'  # NEW: Toggle automatic breaks
 
 REGION_FILE = 'uncut-gem-automation-regions.json'
 
@@ -142,6 +143,9 @@ MIN_CYCLES_BEFORE_BREAK = 20
 BREAK_MIN_SEC     = 12
 BREAK_MAX_SEC     = 25
 INITIAL_DELAY_SEC = 10
+
+# NEW: Break system toggle
+ENABLE_AUTO_BREAKS = False  # Set to False to disable automatic breaks
 
 PROGRESS_UPDATE_INTERVAL = 120
 SHOW_DETAILED_PROGRESS = False
@@ -640,6 +644,7 @@ def print_stats():
         logger.info(f"⏱️  Session Time: {format_time(elapsed)}")
         logger.info(f"⚡ Actions/Min: {actions_per_min:.1f}")
         logger.info(f"🔄 Cycles/Hour: {cycles_per_hour:.1f}")
+        logger.info(f"☕ Auto Breaks: {'✅ Enabled' if ENABLE_AUTO_BREAKS else '❌ Disabled'}")
         logger.info("=" * 70)
 
 def execute_step(step_index):
@@ -797,8 +802,8 @@ def uncut_gem_automation_loop():
                     if FORCE_GARBAGE_COLLECTION:
                         gc.collect()
                 
-                # Take break every few cycles
-                if cycle_count % MIN_CYCLES_BEFORE_BREAK == 0:
+                # Take break every few cycles (only if enabled)
+                if ENABLE_AUTO_BREAKS and cycle_count % MIN_CYCLES_BEFORE_BREAK == 0:
                     break_duration = random.uniform(BREAK_MIN_SEC, BREAK_MAX_SEC)
                     session_stats['total_breaks'] += 1
                     logger.info(f"☕ Taking break #{session_stats['total_breaks']} for {break_duration:.1f}s after {cycle_count} cycles...")
@@ -807,6 +812,8 @@ def uncut_gem_automation_loop():
                     
                     if running:
                         logger.info("🔄 Break finished, resuming Uncut Gem Automation...")
+                elif not ENABLE_AUTO_BREAKS and cycle_count % MIN_CYCLES_BEFORE_BREAK == 0:
+                    logger.info(f"☕ Auto-break skipped after {cycle_count} cycles (breaks disabled)")
                         
         except Exception as e:
             logger.error(f"❌ Error in Uncut Gem Automation loop: {e}")
@@ -818,7 +825,7 @@ def uncut_gem_automation_loop():
 
 def keyboard_monitor():
     """Console-based keyboard monitoring using msvcrt"""
-    logger.info("⌨️  Keyboard monitoring started. Press '`' to start/stop, '~' to exit, 'c' for calibration")
+    logger.info("⌨️  Keyboard monitoring started. Press '`' to start/stop, '~' to exit, 'c' for calibration, 'b' to toggle breaks")
     logger.info("💡 Note: Make sure this console window is focused for key detection")
     
     try:
@@ -835,6 +842,9 @@ def keyboard_monitor():
                 elif key == 'c':
                     handle_calibration()
                     time.sleep(0.3)  # Prevent multiple triggers
+                elif key == 'b':
+                    handle_toggle_breaks()
+                    time.sleep(0.3)  # Prevent multiple triggers
             else:
                 time.sleep(0.05)  # Short sleep when no key is pressed
                 
@@ -849,7 +859,8 @@ def handle_start_stop():
         running = True
         session_stats['session_start'] = time.time()
         logger.info("▶️  AUTOMATION STARTED")
-        logger.info(f"🎮 Controls: Press '`' to stop, '~' to exit")
+        logger.info(f"🎮 Controls: Press '`' to stop, '~' to exit, 'b' to toggle breaks")
+        logger.info(f"☕ Auto Breaks: {'✅ Enabled' if ENABLE_AUTO_BREAKS else '❌ Disabled'}")
         automation_thread = threading.Thread(target=uncut_gem_automation_loop, daemon=True)
         automation_thread.start()
     else:
@@ -859,7 +870,7 @@ def handle_start_stop():
             logger.info("⏳ Waiting for current action to complete...")
             automation_thread.join(timeout=5)
         print_stats()
-        logger.info(f"🎮 Press '`' to resume, '~' to exit")
+        logger.info(f"🎮 Press '`' to resume, '~' to exit, 'b' to toggle breaks")
 
 def handle_exit():
     global running, automation_thread
@@ -878,12 +889,23 @@ def handle_calibration():
     regions = calibrate_all_regions()
     logger.info("✅ Calibration complete! New regions saved.")
 
+def handle_toggle_breaks():
+    global ENABLE_AUTO_BREAKS
+    ENABLE_AUTO_BREAKS = not ENABLE_AUTO_BREAKS
+    status = "✅ Enabled" if ENABLE_AUTO_BREAKS else "❌ Disabled"
+    logger.info(f"☕ Auto Breaks: {status}")
+    if ENABLE_AUTO_BREAKS:
+        logger.info(f"   Break will be taken every {MIN_CYCLES_BEFORE_BREAK} cycles ({BREAK_MIN_SEC}-{BREAK_MAX_SEC}s)")
+    else:
+        logger.info("   Automation will run continuously without breaks")
+
 def main():
     logger.info("💎 Enhanced Anti-Bot Uncut Gem Automation")
     logger.info("=" * 70)
     logger.info(f"⌨️  START/STOP: Press '`' (backtick)")
     logger.info(f"⌨️  EXIT: Press '~' (tilde)")
     logger.info(f"🎯 CALIBRATION: Press 'c' to recalibrate all regions")
+    logger.info(f"☕ TOGGLE BREAKS: Press 'b' to enable/disable automatic breaks")
     logger.info("─" * 70)
     logger.info("💎 UNCUT GEM AUTOMATION CONFIGURATION:")
     
@@ -908,7 +930,12 @@ def main():
     logger.info(f"👀 Distraction Moves: {'✅ Enabled' if ENABLE_DISTRACTION_MOVES else '❌ Disabled'} ({DISTRACTION_CHANCE*100:.0f}% chance)")
     logger.info(f"🎨 Curve Intensity: {CURVE_INTENSITY*100:.0f}%")
     logger.info("─" * 70)
-    logger.info(f"☕ Break Every: {MIN_CYCLES_BEFORE_BREAK} cycles")
+    logger.info(f"☕ Auto Breaks: {'✅ Enabled' if ENABLE_AUTO_BREAKS else '❌ Disabled'}")
+    if ENABLE_AUTO_BREAKS:
+        logger.info(f"   Break Every: {MIN_CYCLES_BEFORE_BREAK} cycles")
+        logger.info(f"   Break Duration: {BREAK_MIN_SEC}-{BREAK_MAX_SEC} seconds")
+    else:
+        logger.info("   Continuous operation (no automatic breaks)")
     logger.info(f"⏳ Initial Delay: {INITIAL_DELAY_SEC} seconds")
     logger.info(f"📊 Progress Updates: Every {PROGRESS_UPDATE_INTERVAL}s for long waits")
     logger.info("=" * 70)
@@ -940,6 +967,7 @@ def main():
     
     logger.info("💡 Ready! Press '`' (backtick) to start automation...")
     logger.info("💡 Enhanced with human-like movement patterns to avoid detection!")
+    logger.info("💡 Tip: Press 'b' to toggle automatic breaks on/off")
     logger.info("💡 Tip: Adjust anti-bot settings at top of script to customize behavior")
     logger.info("💡 Tip: Press 'c' to recalibrate click regions")
     logger.info("💡 Tip: Using pure Windows API - no external library detection!")

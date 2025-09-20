@@ -74,10 +74,10 @@ REGION_FILE = 'runecrafting-region-flesh-rune.json'
 # New 9-Step Runecrafting Configuration
 RUNECRAFTING_STEPS = [
     {
-        'name': 'Click Bank Chest',
+        'name': 'Click Rowboat',
         'emoji': '🏦',
         'duration': (3.0, 5.0),
-        'region_key': 'BANK_CHEST_REGION'
+        'region_key': 'ROWBOAT_REGION'
     },
     {
         'name': 'Trigger CTRL+3 Keybind',
@@ -119,11 +119,11 @@ RUNECRAFTING_STEPS = [
         'region_key': 'FLESH_ALTAR_REGION'
     },
     {
-        'name': 'Trigger Minus Keybind',
-        'emoji': '➖',
+        'name': 'Trigger Seven Keybind',
+        'emoji': '7️⃣',
         'duration': (4.0, 5.25),
         'region_key': None,
-        'keybinds': ['-']
+        'keybinds': ['7']
     },
     {
         'name': 'Click Reset Camera',

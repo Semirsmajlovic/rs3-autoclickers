@@ -121,14 +121,14 @@ RUNECRAFTING_STEPS = [
     {
         'name': 'Trigger Minus Keybind',
         'emoji': '➖',
-        'duration': (4.0, 5.25),
+        'duration': (5.0, 6.5),
         'region_key': None,
         'keybinds': ['-']
     },
     {
         'name': 'Click Reset Camera',
         'emoji': '📷',
-        'duration': (5.0, 7.0),
+        'duration': (3.0, 4.5),
         'region_key': 'RESET_CAMERA_REGION2'
     }
 ]

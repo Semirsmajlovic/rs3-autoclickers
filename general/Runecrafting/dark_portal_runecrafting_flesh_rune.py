@@ -76,7 +76,7 @@ RUNECRAFTING_STEPS = [
     {
         'name': 'Click Rowboat',
         'emoji': '🏦',
-        'duration': (3.0, 5.0),
+        'duration': (1.0, 2.5),
         'region_key': 'ROWBOAT_REGION'
     },
     {

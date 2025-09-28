@@ -1,8 +1,8 @@
 # RUNECRAFTING - SCRIPT 
 #
 # Instructions:
-# - Camera: Freedom.
-# - Camera Position: Zoomed Out + Top Maxed.
+# - Camera: Modern.
+# - Camera Position: Click Compass Pointing North -> No Up/Down.
 
 import time
 import random
@@ -119,11 +119,11 @@ RUNECRAFTING_STEPS = [
         'region_key': 'FLESH_ALTAR_REGION'
     },
     {
-        'name': 'Trigger Seven Keybind',
-        'emoji': '7️⃣',
+        'name': 'Trigger Minus Keybind',
+        'emoji': '➖',
         'duration': (4.0, 5.25),
         'region_key': None,
-        'keybinds': ['7']
+        'keybinds': ['-']
     },
     {
         'name': 'Click Reset Camera',
